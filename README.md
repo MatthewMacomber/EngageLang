@@ -124,48 +124,48 @@ Engage is a starting point. Here are some features that could be added next:
 ## Future Development Ideas
 
 1. Vibe Coding and The Living Environment
-    This is the cornerstone of the Engage experience, designed to eliminate friction between idea and execution. The entire environment is built to provide immediate feedback and encourage experimentation.
-    Image-Based Persistence: The entire development environment—all code, objects, assets, and the program's current state—is saved into a single engage.image file. You don't "run" a program; you resume an image.
-    Live Coding and Debugging: Because the environment is always live, you can pause execution at any point, inspect any object, modify its state, rewrite a function's code, and then continue execution from that exact spot without restarting.
-    Hot Swapping of Assets: Instantly see changes by dragging new textures, sounds, or models into the running environment.
-    Intelligent and Context-Aware Tooling: The IDE is an active partner in the creative process.
-    "Pro-Vibe" Suggestions: Code completion offers context-aware help, such as popping up a color picker when defining a color variable or suggesting common event handlers.
-    "Code Sketchpad": A dedicated space for "doodling" with code snippets and testing ideas without affecting the main project.
+    - This is the cornerstone of the Engage experience, designed to eliminate friction between idea and execution. The entire environment is built to provide immediate feedback and encourage experimentation.
+    - Image-Based Persistence: The entire development environment—all code, objects, assets, and the program's current state—is saved into a single engage.image file. You don't "run" a program; you resume an image.
+    - Live Coding and Debugging: Because the environment is always live, you can pause execution at any point, inspect any object, modify its state, rewrite a function's code, and then continue execution from that exact spot without restarting.
+    - Hot Swapping of Assets: Instantly see changes by dragging new textures, sounds, or models into the running environment.
+    - Intelligent and Context-Aware Tooling: The IDE is an active partner in the creative process.
+    - "Pro-Vibe" Suggestions: Code completion offers context-aware help, such as popping up a color picker when defining a color variable or suggesting common event handlers.
+    - "Code Sketchpad": A dedicated space for "doodling" with code snippets and testing ideas without affecting the main project.
 
 2. Concurrency and Parallelism
-    Engage provides a simple yet powerful model for handling multiple operations at once.
-    Tasks and Channels:
-    Tasks: Lightweight, concurrent functions that are incredibly cheap to create and manage, making massive parallelism practical.
-    Channels: The primary method for safe communication between tasks, preventing data races and deadlocks by design.
-    Fibers: For cooperative multitasking, fibers are lightweight coroutines that can be paused and resumed explicitly. They are perfect for scripting complex, sequential logic like AI behavior or animations without blocking the main program.
+    - Engage provides a simple yet powerful model for handling multiple operations at once.
+    - Tasks and Channels:
+    - Tasks: Lightweight, concurrent functions that are incredibly cheap to create and manage, making massive parallelism practical.
+    - Channels: The primary method for safe communication between tasks, preventing data races and deadlocks by design.
+    - ibers: For cooperative multitasking, fibers are lightweight coroutines that can be paused and resumed explicitly. They are perfect for scripting complex, sequential logic like AI behavior or animations without blocking the main program.
 
 3. Object-Oriented and Structural Programming
-    Engage offers a flexible and safe approach to structuring data and behavior.
-    Protocol-Oriented Programming: Define protocols as blueprints of methods and properties to create powerful abstractions without forcing a strict class hierarchy.
-    Powerful Records (Structs): Records are true value types that can have methods and implement protocols, encouraging safer, more predictable code by passing data by value.
-    Class-Based Objects and Messaging: For traditional OOP, Engage supports formal class structures. It also embraces the philosophy that "everything is a message," unifying the object model by having you send messages to objects rather than calling methods on them.
+    - Engage offers a flexible and safe approach to structuring data and behavior.
+    - Protocol-Oriented Programming: Define protocols as blueprints of methods and properties to create powerful abstractions without forcing a strict class hierarchy.
+    - Powerful Records (Structs): Records are true value types that can have methods and implement protocols, encouraging safer, more predictable code by passing data by value.
+    - Class-Based Objects and Messaging: For traditional OOP, Engage supports formal class structures. It also embraces the philosophy that "everything is a message," unifying the object model by having you send messages to objects rather than calling methods on them.
 
 4. Metaprogramming and Extensibility
-    Reshape the language itself to fit your problem domain.
-    Syntactic Macros: A powerful macro system allows you to add new syntax to the language. Macros operate on the code's structure (the AST) during compilation, enabling the creation of highly expressive Domain-Specific Languages (DSLs) for tasks like dialogue systems, animation sequences, or custom UI layouts.
-    Context System: An implicit context system allows a scope to hold variables (like a custom memory allocator or logger) that are automatically passed to any function called within that scope, reducing boilerplate and making libraries more flexible.
+    - Reshape the language itself to fit your problem domain.
+    - Syntactic Macros: A powerful macro system allows you to add new syntax to the language. Macros operate on the code's structure (the AST) during compilation, enabling the creation of highly expressive Domain-Specific Languages (DSLs) for tasks like dialogue systems, animation sequences, or custom UI layouts.
+    - Context System: An implicit context system allows a scope to hold variables (like a custom memory allocator or logger) that are automatically passed to any function called within that scope, reducing boilerplate and making libraries more flexible.
 
 5. Game Development and Graphics
-    Engage treats creative and interactive elements as first-class citizens.
-    Simple, High-Level API: A comprehensive, command-based standard library for 2D/3D graphics, physics, and input abstracts away low-level details.
-    Natively Supported 2D & 3D Graphics: Built-in commands and data types for sprites, shapes, text, particles, 3D models, skeletal animation, lighting, and ray casting.
-    Natively Supported Voxels: First-class support for voxel-based worlds, including efficient data structures and an optimized rendering engine.
-    High-Level Creative Abstractions:
-    Shaders as Native Functions: Write shaders directly in Engage using a specialized dialect, with the compiler handling the translation.
-    Built-in Tweening and Animation: An expressive, built-in syntax for creating smooth animations without manual frame-by-frame calculations.
-    First-Class Creative Types: Colors, vectors, and gradients are built-in types with intuitive operations (e.g., my_color darkened by 20%).
+    - Engage treats creative and interactive elements as first-class citizens.
+    - Simple, High-Level API: A comprehensive, command-based standard library for 2D/3D graphics, physics, and input abstracts away low-level details.
+    - Natively Supported 2D & 3D Graphics: Built-in commands and data types for sprites, shapes, text, particles, 3D models, skeletal animation, lighting, and ray casting.
+    - Natively Supported Voxels: First-class support for voxel-based worlds, including efficient data structures and an optimized rendering engine.
+    - High-Level Creative Abstractions:
+    - Shaders as Native Functions: Write shaders directly in Engage using a specialized dialect, with the compiler handling the translation.
+    - Built-in Tweening and Animation: An expressive, built-in syntax for creating smooth animations without manual frame-by-frame calculations.
+    - First-Class Creative Types: Colors, vectors, and gradients are built-in types with intuitive operations (e.g., my_color darkened by 20%).
 
 6. Visual and Interactive Environment
-    The visual environment is a direct, tangible representation of your code, designed for intuitive interaction.
-    Natively Supported Visual Scripting: A node-based visual scripting interface that is a direct, one-to-one representation of Engage's text-based code.
-    1:1 Bidirectional Syncing: Changes in the text editor are instantly reflected in the visual graph, and vice-versa.
-    Visual Scaffolding, Textual Refinement: Quickly "vibe out" the overall flow of a system by connecting nodes visually, then double-click a node to write the detailed logic in text.
-    Interactive Value Probes: See the actual data flowing through the connections between nodes as the program runs, making data flow tangible and easy to debug.
+    - The visual environment is a direct, tangible representation of your code, designed for intuitive interaction.
+    - Natively Supported Visual Scripting: A node-based visual scripting interface that is a direct, one-to-one representation of Engage's text-based code.
+    - 1:1 Bidirectional Syncing: Changes in the text editor are instantly reflected in the visual graph, and vice-versa.
+    - Visual Scaffolding, Textual Refinement: Quickly "vibe out" the overall flow of a system by connecting nodes visually, then double-click a node to write the detailed logic in text.
+    - Interactive Value Probes: See the actual data flowing through the connections between nodes as the program runs, making data flow tangible and easy to debug.
     
 
 ## Feel free to experiment, expand the syntax, and add new features to the interpreter!
