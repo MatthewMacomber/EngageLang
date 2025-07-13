@@ -105,6 +105,100 @@ The interpreter works in three stages, which you can see in the `run()` function
     
 3.  **Evaluation (`engage_interpreter.py`):** The interpreter "walks" the AST, node by node, and executes the logic. It manages a **Symbol Table** to store variables and functions in their correct scopes.
     
+## Examples
+### Example 1: fibonacci.engage
+This program demonstrates recursive function calls, conditional logic, and basic arithmetic. It calculates the nth number in the Fibonacci sequence.
+
+To run: python engage_interpreter.py fibonacci.engage
+```
+// fibonacci.engage
+// Demonstrates recursive functions.
+
+to fibonacci with n:
+    if n is less than 2 then
+        return n.
+    otherwise
+        let a be fibonacci with n minus 1.
+        let b be fibonacci with n minus 2.
+        return a plus b.
+    end
+end
+
+print with "Calculating the 10th Fibonacci number...".
+let result be fibonacci with 10.
+print with result.
+```
+
+### Example 2: guess_the_number.engage
+This program is a simple interactive game. It showcases loops, user input, string concatenation, and type conversion.
+
+To run: python engage_interpreter.py guess_the_number.engage
+```
+// guess_the_number.engage
+// Demonstrates loops, I/O, and string manipulation.
+
+print with "I'm thinking of a number between 1 and 100.".
+let secret_number be 42.
+let guess be 0.
+
+while guess is not secret_number:
+    let user_input be input with "What is your guess? ".
+    let guess be number with user_input.
+
+    if guess is less than secret_number then
+        print with "Too low!".
+    otherwise if guess is greater than secret_number then
+        print with "Too high!".
+    end
+end
+
+print with "You guessed it! The number was 42.".
+```
+
+### Example 3: simple_dialogue.engage
+This program simulates a basic NPC dialogue tree. It shows how Engage's readable syntax can be used for game-like logic, managing state, and handling nested conditions.
+
+To run: python engage_interpreter.py simple_dialogue.engage
+```
+// simple_dialogue.engage
+// Demonstrates nested logic and state management for a simple dialogue tree.
+
+let player_has_quest_item be 0. // Use 0 for false, 1 for true
+
+to talk_to_guard:
+    print with "[Guard]: Halt! Who goes there?".
+    let response be input with "(1) I'm a traveler. (2) Do you need help? > ".
+
+    if response is "1" then
+        print with "[Guard]: A traveler, eh? Be on your way, but cause no trouble.".
+    otherwise if response is "2" then
+        print with "[Guard]: Help? Hah! ...Actually, yes. A goblin stole my helmet.".
+        print with "[Guard]: If you find it, I'll make it worth your while.".
+        
+        // Simulate finding the item
+        let player_has_quest_item be 1.
+    end
+end
+
+to check_on_guard_again:
+    if player_has_quest_item is 1 then
+        print with "[Guard]: You again! Did you find my helmet?".
+        let final_response be input with "(1) Yes, here it is. > ".
+        if final_response is "1" then
+            print with "[Guard]: My helmet! You have my thanks. Here's your reward.".
+            print with "You received 50 gold.".
+        end
+    otherwise
+        print with "[Guard]: Move along.".
+    end
+end
+
+// --- Start the simulation ---
+talk_to_guard.
+print with "--- Some time passes... ---".
+check_on_guard_again.
+```
+
 
 ## Near Future Development
 
