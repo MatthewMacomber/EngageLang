@@ -1,9 +1,8 @@
 # This code assumes the Lexer and Parser from the previous artifacts are in files
 # named 'engage_lexer.py' and 'engage_parser.py'.
 import sys
-# This is a placeholder for the actual lexer/parser imports
-# from engage_lexer import Lexer
-# from engage_parser import Parser, ASTNode, ProgramNode, VarAssignNode, VarAccessNode, BinOpNode, NumberNode, StringNode, FuncDefNode, FuncCallNode, ReturnNode, IfNode, UnaryOpNode
+from engage_lexer import Lexer
+from engage_parser import Parser, ASTNode, ProgramNode, VarAssignNode, VarAccessNode, BinOpNode, NumberNode, StringNode, FuncDefNode, FuncCallNode, ReturnNode, IfNode, UnaryOpNode, WhileNode
 
 # --- Runtime Value Classes ---
 # These classes represent the actual values that our program will work with.
@@ -102,12 +101,6 @@ class Interpreter:
     def visit(self, node, context):
         """Dispatcher method to call the correct visit method for a node."""
         method_name = f'visit_{type(node).__name__}'
-        # Need to get the actual class from the parser module if it's not globally available
-        try:
-            from engage_parser import ASTNode, ProgramNode, VarAssignNode, VarAccessNode, BinOpNode, UnaryOpNode, NumberNode, StringNode, FuncDefNode, FuncCallNode, ReturnNode, IfNode
-        except ImportError:
-            # This is a fallback for when the file is run directly without the other modules
-            pass
         method = getattr(self, method_name, self.no_visit_method)
         return method(node, context)
 
@@ -119,7 +112,6 @@ class Interpreter:
         result = None
         for statement in node.statements:
             result = self.visit(statement, context)
-            # Handle return statements at the top level
             if isinstance(result, ReturnValue):
                 return result.value
         return result
@@ -146,7 +138,6 @@ class Interpreter:
         op = node.op_token.value
 
         if op in ('plus', '+'):
-            # Allow string concatenation
             if isinstance(left, String) or isinstance(right, String):
                 return String(str(left.value) + str(right.value))
             return Number(left.value + right.value)
@@ -158,7 +149,6 @@ class Interpreter:
             if right.value == 0:
                 raise ZeroDivisionError("Division by zero")
             return Number(left.value / right.value)
-        # --- START FIXED LOGIC ---
         elif op in ('is greater than', '>'):
             return Number(1) if left.value > right.value else Number(0)
         elif op in ('is less than', '<'):
@@ -171,7 +161,6 @@ class Interpreter:
             return Number(1) if left.is_true() and right.is_true() else Number(0)
         elif op == 'or':
             return Number(1) if left.is_true() or right.is_true() else Number(0)
-        # --- END FIXED LOGIC ---
         
         raise TypeError(f"Unsupported operand types for {op}")
 
@@ -200,14 +189,11 @@ class Interpreter:
     def visit_FuncCallNode(self, node, context):
         """Visit a function call node."""
         args = []
-        # Evaluate all the argument nodes first
         for arg_node in node.arg_nodes:
             args.append(self.visit(arg_node, context))
 
-        # Get the function to call
         func_to_call = self.visit(node.node_to_call, context)
 
-        # Execute the function
         if isinstance(func_to_call, BuiltInFunction):
             return self.execute_builtin_function(func_to_call, args, context)
         elif isinstance(func_to_call, Function):
@@ -220,7 +206,7 @@ class Interpreter:
         if func.name == 'print':
             for arg in args:
                 print(arg.value)
-            return Number(0) # Return a neutral value
+            return Number(0)
         elif func.name == 'input':
             if not args:
                 text = input()
@@ -238,27 +224,21 @@ class Interpreter:
         if len(args) != len(func.arg_names):
             raise TypeError(f"Function '{func.name}' takes {len(func.arg_names)} arguments but {len(args)} were given")
 
-        # Create a new context (symbol table) for the function's scope
         func_context = SymbolTable(parent=context)
         
-        # Populate the function's context with the arguments
         for i, arg_name in enumerate(func.arg_names):
             func_context.set(arg_name, args[i])
 
-        # Execute the function body
         result = None
         for statement in func.body_node:
             result = self.visit(statement, func_context)
-            # If we hit a return statement, exit the function immediately
             if isinstance(result, ReturnValue):
                 return result.value
         
-        # Implicit return of the last statement's value
         return result if result else Number(0)
 
     def visit_IfNode(self, node, context):
         """Visit an if/otherwise node."""
-        # Handle 'if' and 'otherwise if' cases
         for condition_node, statements in node.cases:
             condition_value = self.visit(condition_node, context)
             if condition_value.is_true():
@@ -269,7 +249,6 @@ class Interpreter:
                         return result
                 return result if result else Number(0)
 
-        # Handle 'otherwise' case
         if node.else_case:
             result = None
             for statement in node.else_case:
@@ -278,7 +257,23 @@ class Interpreter:
                     return result
             return result if result else Number(0)
         
-        return Number(0) # If no branch is taken
+        return Number(0)
+
+    def visit_WhileNode(self, node, context):
+        """Visit a while loop node."""
+        result = Number(0)
+
+        while True:
+            condition = self.visit(node.condition_node, context)
+            if not condition.is_true():
+                break
+
+            for statement in node.body_nodes:
+                result = self.visit(statement, context)
+                if isinstance(result, ReturnValue):
+                    return result
+        
+        return result
 
     def visit_ReturnNode(self, node, context):
         """Visit a return node."""
@@ -300,14 +295,9 @@ global_symbol_table.set("number", BuiltInFunction("number"))
 # --- Main Execution Function ---
 def run(code, symbol_table):
     """Lex, parse, and interpret the code."""
-    # This assumes a working Lexer and Parser are available
     from engage_lexer import Lexer
     from engage_parser import Parser
 
-    # Lexing
-    lexer = Lexer(code)
-    # This is a bit of a hack to make the lexer available to the parser
-    # In a real application, this would be handled more cleanly.
     def lexer_tokenize(self):
         tokens = []
         while True:
@@ -316,25 +306,22 @@ def run(code, symbol_table):
             if token.type == 'EOF':
                 break
         return tokens
-    lexer.tokenize = lexer_tokenize.__get__(lexer, Lexer)
+    Lexer.tokenize = lexer_tokenize
 
-
+    lexer = Lexer(code)
     tokens = lexer.tokenize()
 
-    # Parsing
     parser = Parser(tokens)
     ast = parser.parse()
     if not ast:
         return None
 
-    # Interpreting
     interpreter = Interpreter()
     result = interpreter.visit(ast, symbol_table)
     return result
 
 # --- Main Execution Block ---
 if __name__ == '__main__':
-    # Check for a command-line argument for a file path
     if len(sys.argv) > 1:
         filepath = sys.argv[1]
         try:
@@ -343,9 +330,8 @@ if __name__ == '__main__':
             print(f"--- Running Engage Code from file: {filepath} ---")
         except FileNotFoundError:
             print(f"Error: File not found at '{filepath}'")
-            sys.exit(1) # Exit the script if the file doesn't exist
+            sys.exit(1)
     else:
-        # If no file is provided, fall back to the built-in example code
         print("--- No file provided. Running built-in Engage example code. ---")
         engage_code = """
         to fibonacci with n:
@@ -367,9 +353,6 @@ if __name__ == '__main__':
     print("--- OUTPUT ---")
     
     try:
-        # This requires the other python files to be in the same directory
-        from engage_lexer import Lexer
-        from engage_parser import Parser, ASTNode, ProgramNode, VarAssignNode, VarAccessNode, BinOpNode, UnaryOpNode, NumberNode, StringNode, FuncDefNode, FuncCallNode, ReturnNode, IfNode
         run(engage_code, global_symbol_table)
     except Exception as e:
         import traceback
