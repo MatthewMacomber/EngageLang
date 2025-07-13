@@ -1,7 +1,9 @@
 # This code assumes the Lexer and Parser from the previous artifacts are in files
 # named 'engage_lexer.py' and 'engage_parser.py'.
-from engage_lexer import Lexer
-from engage_parser import Parser, ASTNode, ProgramNode, VarAssignNode, VarAccessNode, BinOpNode, NumberNode, StringNode, FuncDefNode, FuncCallNode, ReturnNode, IfNode
+import sys
+# This is a placeholder for the actual lexer/parser imports
+# from engage_lexer import Lexer
+# from engage_parser import Parser, ASTNode, ProgramNode, VarAssignNode, VarAccessNode, BinOpNode, NumberNode, StringNode, FuncDefNode, FuncCallNode, ReturnNode, IfNode, UnaryOpNode
 
 # --- Runtime Value Classes ---
 # These classes represent the actual values that our program will work with.
@@ -20,6 +22,9 @@ class Value:
     def set_context(self, context=None):
         self.context = context
         return self
+    
+    def is_true(self):
+        return False
 
 class Number(Value):
     """Represents a number value in our language."""
@@ -28,6 +33,9 @@ class Number(Value):
         self.value = value
     def __repr__(self):
         return str(self.value)
+    
+    def is_true(self):
+        return self.value != 0
 
 class String(Value):
     """Represents a string value in our language."""
@@ -36,6 +44,9 @@ class String(Value):
         self.value = value
     def __repr__(self):
         return f'"{self.value}"'
+    
+    def is_true(self):
+        return len(self.value) > 0
 
 class Function(Value):
     """Represents a function defined in Engage."""
@@ -91,6 +102,12 @@ class Interpreter:
     def visit(self, node, context):
         """Dispatcher method to call the correct visit method for a node."""
         method_name = f'visit_{type(node).__name__}'
+        # Need to get the actual class from the parser module if it's not globally available
+        try:
+            from engage_parser import ASTNode, ProgramNode, VarAssignNode, VarAccessNode, BinOpNode, UnaryOpNode, NumberNode, StringNode, FuncDefNode, FuncCallNode, ReturnNode, IfNode
+        except ImportError:
+            # This is a fallback for when the file is run directly without the other modules
+            pass
         method = getattr(self, method_name, self.no_visit_method)
         return method(node, context)
 
@@ -129,6 +146,9 @@ class Interpreter:
         op = node.op_token.value
 
         if op in ('plus', '+'):
+            # Allow string concatenation
+            if isinstance(left, String) or isinstance(right, String):
+                return String(str(left.value) + str(right.value))
             return Number(left.value + right.value)
         elif op in ('minus', '-'):
             return Number(left.value - right.value)
@@ -138,11 +158,29 @@ class Interpreter:
             if right.value == 0:
                 raise ZeroDivisionError("Division by zero")
             return Number(left.value / right.value)
+        # --- START FIXED LOGIC ---
         elif op in ('is greater than', '>'):
-            return Number(1) if left.value > right.value else Number(0) # Using 1/0 for true/false
-        # Add other operators here...
+            return Number(1) if left.value > right.value else Number(0)
+        elif op in ('is less than', '<'):
+            return Number(1) if left.value < right.value else Number(0)
+        elif op in ('is', '=='):
+            return Number(1) if left.value == right.value else Number(0)
+        elif op in ('is not', '!='):
+            return Number(1) if left.value != right.value else Number(0)
+        elif op == 'and':
+            return Number(1) if left.is_true() and right.is_true() else Number(0)
+        elif op == 'or':
+            return Number(1) if left.is_true() or right.is_true() else Number(0)
+        # --- END FIXED LOGIC ---
         
         raise TypeError(f"Unsupported operand types for {op}")
+
+    def visit_UnaryOpNode(self, node, context):
+        op = node.op_token.value
+        number = self.visit(node.node, context)
+        if op == 'not':
+            return Number(0) if number.is_true() else Number(1)
+        raise TypeError(f"Unsupported unary operator: {op}")
 
     def visit_NumberNode(self, node, context):
         return Number(node.value).set_context(context)
@@ -183,6 +221,16 @@ class Interpreter:
             for arg in args:
                 print(arg.value)
             return Number(0) # Return a neutral value
+        elif func.name == 'input':
+            if not args:
+                text = input()
+            else:
+                text = input(args[0].value)
+            return String(text)
+        elif func.name == 'number':
+            if not args:
+                raise ValueError("number() expects one argument.")
+            return Number(float(args[0].value))
         return Number(0)
 
     def execute_user_function(self, func, args, context):
@@ -213,7 +261,7 @@ class Interpreter:
         # Handle 'if' and 'otherwise if' cases
         for condition_node, statements in node.cases:
             condition_value = self.visit(condition_node, context)
-            if condition_value.value != 0: # Using 0 as false, non-zero as true
+            if condition_value.is_true():
                 result = None
                 for statement in statements:
                     result = self.visit(statement, context)
@@ -244,19 +292,34 @@ class ReturnValue:
 
 # --- Global Environment Setup ---
 global_symbol_table = SymbolTable()
-global_symbol_table.set("print", BuiltInFunction("print")) # Add built-in print function
+global_symbol_table.set("print", BuiltInFunction("print"))
+global_symbol_table.set("input", BuiltInFunction("input"))
+global_symbol_table.set("number", BuiltInFunction("number"))
+
 
 # --- Main Execution Function ---
 def run(code, symbol_table):
     """Lex, parse, and interpret the code."""
+    # This assumes a working Lexer and Parser are available
+    from engage_lexer import Lexer
+    from engage_parser import Parser
+
     # Lexing
     lexer = Lexer(code)
-    tokens = []
-    while True:
-        token = lexer.get_next_token()
-        tokens.append(token)
-        if token.type == 'EOF':
-            break
+    # This is a bit of a hack to make the lexer available to the parser
+    # In a real application, this would be handled more cleanly.
+    def lexer_tokenize(self):
+        tokens = []
+        while True:
+            token = self.get_next_token()
+            tokens.append(token)
+            if token.type == 'EOF':
+                break
+        return tokens
+    lexer.tokenize = lexer_tokenize.__get__(lexer, Lexer)
+
+
+    tokens = lexer.tokenize()
 
     # Parsing
     parser = Parser(tokens)
@@ -269,33 +332,46 @@ def run(code, symbol_table):
     result = interpreter.visit(ast, symbol_table)
     return result
 
-# --- Example Usage ---
+# --- Main Execution Block ---
 if __name__ == '__main__':
-    engage_code = """
-    to calculate_score with base_score, bonus:
-        let final_score be base_score plus bonus.
-        if final_score is greater than 100 then
-            print with "Max score! Capping at 100.".
-            return 100.
+    # Check for a command-line argument for a file path
+    if len(sys.argv) > 1:
+        filepath = sys.argv[1]
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                engage_code = f.read()
+            print(f"--- Running Engage Code from file: {filepath} ---")
+        except FileNotFoundError:
+            print(f"Error: File not found at '{filepath}'")
+            sys.exit(1) # Exit the script if the file doesn't exist
+    else:
+        # If no file is provided, fall back to the built-in example code
+        print("--- No file provided. Running built-in Engage example code. ---")
+        engage_code = """
+        to fibonacci with n:
+            if n is less than 2 then
+                return n.
+            otherwise
+                let a be fibonacci with n minus 1.
+                let b be fibonacci with n minus 2.
+                return a plus b.
+            end
         end
-        return final_score.
-    end
 
-    let player_score be 85.
-    let score_bonus be 20.
-    
-    print with "Calculating final score...".
-    let final_player_score be calculate_score with player_score, score_bonus.
-    print with "Final score is:".
-    print with final_player_score.
-    """
+        print with "Calculating the 10th Fibonacci number...".
+        let result be fibonacci with 10.
+        print with result.
+        """
 
-    print("--- Running Engage Code ---")
-    print(f"CODE:\n{engage_code}\n")
+    print(f"\nCODE:\n{engage_code}\n")
     print("--- OUTPUT ---")
     
     try:
+        # This requires the other python files to be in the same directory
+        from engage_lexer import Lexer
+        from engage_parser import Parser, ASTNode, ProgramNode, VarAssignNode, VarAccessNode, BinOpNode, UnaryOpNode, NumberNode, StringNode, FuncDefNode, FuncCallNode, ReturnNode, IfNode
         run(engage_code, global_symbol_table)
     except Exception as e:
-        print(f"An error occurred: {e}")
-
+        import traceback
+        traceback.print_exc()
+        print(f"\nAn error occurred: {e}")
