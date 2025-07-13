@@ -199,6 +199,41 @@ print with "--- Some time passes... ---".
 check_on_guard_again.
 ```
 
+### Example 4: concurrency_demo.engage
+This program demonstrates the new concurrency features. It creates a channel, starts a background task (a "producer") that sends messages to the channel, and then the main task (the "consumer") receives them.
+
+To run: python engage_interpreter.py concurrency_demo.engage
+```
+// concurrency_demo.engage
+// Demonstrates Tasks and Channels for concurrent programming.
+
+// Create a shared channel for tasks to communicate.
+create a channel named messages.
+
+// Define a task that will run in the background.
+run concurrently:
+    print with "[Task]: Starting to send messages...".
+    send "Hello" through messages.
+    send "from" through messages.
+    send "the" through messages.
+    send "concurrent" through messages.
+    send "task!" through messages.
+    send "DONE" through messages. // A special message to signal the end.
+end
+
+print with "[Main]: Waiting to receive messages...".
+
+// Loop until we receive the "DONE" signal.
+let received_message be "".
+while received_message is not "DONE":
+    let received_message be receive from messages.
+    if received_message is not "DONE" then
+        print with "[Main]: Received:" concatenated with " " concatenated with received_message.
+    end
+end
+
+print with "[Main]: All messages received. Program finished.".
+```
 
 ## Near Future Development
 
