@@ -1,23 +1,20 @@
-# This code assumes it's working with a Lexer that can tokenize
-# multi-word operators like 'is not' into a single token.
+# This code assumes the Lexer from the 'engage_lexer_python' artifact is in a file
+# named 'engage_lexer.py'.
 from engage_lexer import Lexer, Token, TT_EOF, TT_KEYWORD, TT_IDENTIFIER, TT_NUMBER, TT_STRING, TT_OPERATOR, TT_PUNCTUATION
 
 # --- AST Node Definitions ---
-# These classes define the structure of the Abstract Syntax Tree.
 
 class ASTNode:
     """Base class for all AST nodes."""
     pass
 
 class ProgramNode(ASTNode):
-    """Represents the entire program, a list of statements."""
     def __init__(self, statements):
         self.statements = statements
     def __repr__(self):
         return f"Program({self.statements})"
 
 class VarAssignNode(ASTNode):
-    """Represents a variable assignment, e.g., 'let score be 100'."""
     def __init__(self, name_token, value_node):
         self.name_token = name_token
         self.value_node = value_node
@@ -25,14 +22,12 @@ class VarAssignNode(ASTNode):
         return f"VarAssign(name={self.name_token.value}, value={self.value_node})"
 
 class VarAccessNode(ASTNode):
-    """Represents accessing a variable's value."""
     def __init__(self, name_token):
         self.name_token = name_token
     def __repr__(self):
         return f"VarAccess({self.name_token.value})"
 
 class BinOpNode(ASTNode):
-    """Represents a binary operation, e.g., 'a plus b'."""
     def __init__(self, left_node, op_token, right_node):
         self.left_node = left_node
         self.op_token = op_token
@@ -41,7 +36,6 @@ class BinOpNode(ASTNode):
         return f"BinOp({self.left_node}, op='{self.op_token.value}', {self.right_node})"
 
 class UnaryOpNode(ASTNode):
-    """Represents a unary operation, e.g., 'not true'."""
     def __init__(self, op_token, node):
         self.op_token = op_token
         self.node = node
@@ -86,27 +80,46 @@ class ReturnNode(ASTNode):
 
 class IfNode(ASTNode):
     def __init__(self, cases, else_case):
-        self.cases = cases # List of (condition, statements) tuples
-        self.else_case = else_case # List of statements or None
+        self.cases = cases
+        self.else_case = else_case
     def __repr__(self):
         return f"If(cases={self.cases}, else_case={self.else_case})"
 
 class WhileNode(ASTNode):
-    """Represents a while loop."""
     def __init__(self, condition_node, body_nodes):
         self.condition_node = condition_node
         self.body_nodes = body_nodes
     def __repr__(self):
         return f"While(condition={self.condition_node}, body={self.body_nodes})"
 
+class TaskNode(ASTNode):
+    def __init__(self, body_nodes):
+        self.body_nodes = body_nodes
+    def __repr__(self):
+        return f"Task(body={self.body_nodes})"
+
+class ChannelNode(ASTNode):
+    def __init__(self, name_token):
+        self.name_token = name_token
+    def __repr__(self):
+        return f"Channel(name={self.name_token.value})"
+
+class SendNode(ASTNode):
+    def __init__(self, value_node, channel_node):
+        self.value_node = value_node
+        self.channel_node = channel_node
+    def __repr__(self):
+        return f"Send(value={self.value_node}, channel={self.channel_node})"
+
+class ReceiveNode(ASTNode):
+    def __init__(self, channel_node):
+        self.channel_node = channel_node
+    def __repr__(self):
+        return f"Receive(channel={self.channel_node})"
+
 # --- Parser ---
 
 class Parser:
-    """
-    The Parser takes a list of tokens and builds an Abstract Syntax Tree (AST).
-    This version uses a Pratt Parser for handling expressions, which correctly
-    manages operator precedence.
-    """
     def __init__(self, tokens):
         self.tokens = tokens
         self.token_idx = -1
@@ -114,14 +127,12 @@ class Parser:
         self.advance()
 
     def advance(self):
-        """Moves to the next token in the list."""
         self.token_idx += 1
         if self.token_idx < len(self.tokens):
             self.current_token = self.tokens[self.token_idx]
         return self.current_token
 
     def consume(self, expected_type, expected_value=None):
-        """Consumes the current token if it matches expectations, otherwise raises an error."""
         if self.current_token.type == expected_type and \
            (expected_value is None or self.current_token.value == expected_value):
             self.advance()
@@ -129,17 +140,14 @@ class Parser:
             raise SyntaxError(f"Expected token {expected_type} ('{expected_value}') but got {self.current_token.type} ('{self.current_token.value}')")
 
     def parse(self):
-        """Top-level method that parses the entire program."""
         statements = []
         while self.current_token.type != TT_EOF:
             statements.append(self.parse_statement())
-            # Top-level statements should end with a period for clarity.
             if self.current_token.type == TT_PUNCTUATION and self.current_token.value == '.':
                 self.advance()
         return ProgramNode(statements)
 
     def parse_statement_list(self, end_keywords):
-        """Parses a list of statements until one of the end_keywords is found."""
         statements = []
         while self.current_token.type != TT_EOF and \
               not (self.current_token.type == TT_KEYWORD and self.current_token.value in end_keywords):
@@ -149,7 +157,13 @@ class Parser:
         return statements
 
     def parse_statement(self):
-        """Parses a single statement by dispatching based on the current token."""
+        if self.is_name_token(self.current_token):
+            if self.token_idx + 1 < len(self.tokens):
+                next_token = self.tokens[self.token_idx + 1]
+                if self.get_precedence(next_token) == 0 and next_token.value != 'with':
+                     name_token = self.parse_name_token()
+                     return FuncCallNode(VarAccessNode(name_token), [])
+
         if self.current_token.type == TT_KEYWORD:
             if self.current_token.value == 'let':
                 return self.parse_variable_assignment()
@@ -161,10 +175,40 @@ class Parser:
                 return self.parse_return_statement()
             if self.current_token.value == 'while':
                 return self.parse_while_statement()
+            if self.current_token.value == 'run':
+                return self.parse_task_statement()
+            if self.current_token.value == 'create':
+                if self.token_idx + 2 < len(self.tokens) and self.tokens[self.token_idx + 2].value == 'channel':
+                    return self.parse_channel_statement()
+            if self.current_token.value == 'send':
+                return self.parse_send_statement()
         
         return self.parse_expression()
 
     # --- Statement Parsers ---
+
+    def parse_task_statement(self):
+        self.consume(TT_KEYWORD, 'run')
+        self.consume(TT_KEYWORD, 'concurrently')
+        self.consume(TT_PUNCTUATION, ':')
+        body = self.parse_statement_list(['end'])
+        self.consume(TT_KEYWORD, 'end')
+        return TaskNode(body)
+
+    def parse_channel_statement(self):
+        self.consume(TT_KEYWORD, 'create')
+        self.consume(TT_KEYWORD, 'a')
+        self.consume(TT_KEYWORD, 'channel')
+        self.consume(TT_KEYWORD, 'named')
+        name_token = self.parse_name_token()
+        return ChannelNode(name_token)
+
+    def parse_send_statement(self):
+        self.consume(TT_KEYWORD, 'send')
+        value_node = self.parse_expression()
+        self.consume(TT_KEYWORD, 'through')
+        channel_node = self.parse_name_token()
+        return SendNode(value_node, VarAccessNode(channel_node))
 
     def parse_return_statement(self):
         self.consume(TT_KEYWORD, 'return')
@@ -172,7 +216,6 @@ class Parser:
         return ReturnNode(expr)
 
     def parse_while_statement(self):
-        """Parses 'while {condition}: ... end'"""
         self.consume(TT_KEYWORD, 'while')
         condition = self.parse_expression()
         if self.current_token.type == TT_PUNCTUATION and self.current_token.value == ':':
@@ -185,12 +228,10 @@ class Parser:
         cases = []
         else_case = None
         self.consume(TT_KEYWORD, 'if')
-        
         condition = self.parse_expression()
         self.consume(TT_KEYWORD, 'then')
         statements = self.parse_statement_list(['otherwise', 'end'])
         cases.append((condition, statements))
-
         while self.current_token.type == TT_KEYWORD and self.current_token.value == 'otherwise':
             self.advance()
             if self.current_token.type == TT_KEYWORD and self.current_token.value == 'if':
@@ -202,14 +243,12 @@ class Parser:
             else:
                 else_case = self.parse_statement_list(['end'])
                 break
-        
         self.consume(TT_KEYWORD, 'end')
         return IfNode(cases, else_case)
 
     def parse_function_definition(self):
         self.consume(TT_KEYWORD, 'to')
         name_token = self.parse_name_token()
-
         params = []
         if self.current_token.type == TT_KEYWORD and self.current_token.value == 'with':
             self.advance()
@@ -219,7 +258,6 @@ class Parser:
                     self.advance()
                 else:
                     break
-        
         self.consume(TT_PUNCTUATION, ':')
         body = self.parse_statement_list(['end'])
         self.consume(TT_KEYWORD, 'end')
@@ -243,15 +281,17 @@ class Parser:
         if op in ('and'): return 2
         if op in ('is', '==', 'is not', '!='): return 3
         if op in ('is greater than', '>', 'is less than', '<', '>=', '<='): return 4
-        if op in ('plus', '+', 'minus', '-'): return 5
+        # --- START REFACTORED LOGIC ---
+        if op in ('plus', '+', 'minus', '-', 'concatenated with'): return 5
+        # --- END REFACTORED LOGIC ---
         if op in ('times', '*', 'divided by', '/'): return 6
         return 0
     
     def is_name_token(self, token):
-        """Checks if a token can be considered a name."""
         RESERVED_KEYWORDS = [
             'if', 'then', 'otherwise', 'end', 'let', 'be', 'to', 'with', 'return',
-            'while', 'for', 'repeat', 'and', 'or', 'not'
+            'while', 'for', 'repeat', 'and', 'or', 'not',
+            'run', 'send', 'create'
         ]
         if token.type == TT_IDENTIFIER:
             return True
@@ -260,7 +300,6 @@ class Parser:
         return False
 
     def parse_name_token(self):
-        """Consumes and returns a token that represents a name."""
         token = self.current_token
         if self.is_name_token(token):
             self.advance()
@@ -268,7 +307,6 @@ class Parser:
         raise SyntaxError(f"Expected a valid name but got {token.type}('{token.value}')")
 
     def parse_atom(self):
-        """Parses the most basic elements of an expression."""
         token = self.current_token
         if token.type == TT_NUMBER:
             self.advance()
@@ -276,7 +314,12 @@ class Parser:
         if token.type == TT_STRING:
             self.advance()
             return StringNode(token)
-        
+        if token.type == TT_KEYWORD and token.value == 'receive':
+            self.advance()
+            self.consume(TT_KEYWORD, 'from')
+            channel_node = self.parse_name_token()
+            return ReceiveNode(VarAccessNode(channel_node))
+
         if self.is_name_token(token):
             if self.token_idx + 1 < len(self.tokens) and self.tokens[self.token_idx + 1].value == 'with':
                 return self.parse_function_call()
@@ -295,10 +338,8 @@ class Parser:
         raise SyntaxError(f"Unexpected token in expression: {token}")
     
     def parse_function_call(self):
-        """Parses a function call expression."""
         name_token = self.parse_name_token()
         self.consume(TT_KEYWORD, 'with')
-        
         arg_nodes = []
         if self.current_token.type != TT_PUNCTUATION or self.current_token.value != '.':
              while True:
@@ -307,66 +348,13 @@ class Parser:
                     self.advance()
                 else:
                     break
-        
         return FuncCallNode(VarAccessNode(name_token), arg_nodes)
 
     def parse_expression(self, precedence=0):
-        """Parses a full expression with correct operator precedence."""
         left = self.parse_atom()
-
         while precedence < self.get_precedence(self.current_token):
             op_token = self.current_token
-            
-            # --- START REFACTORED LOGIC ---
-            # Check for multi-word operators and combine them before proceeding.
-            if op_token.type == TT_OPERATOR and op_token.value == 'is':
-                if self.token_idx + 1 < len(self.tokens):
-                    next_token = self.tokens[self.token_idx + 1]
-                    if next_token.value == 'not':
-                        # Create a combined token and advance past the parts
-                        self.advance() # consume 'is'
-                        self.advance() # consume 'not'
-                        op_token = Token(TT_OPERATOR, 'is not', op_token.line, op_token.column)
-                    elif (next_token.value == 'greater' or next_token.value == 'less') and \
-                         self.token_idx + 2 < len(self.tokens) and self.tokens[self.token_idx + 2].value == 'than':
-                        # Create a combined token and advance past the parts
-                        full_op_str = f'is {next_token.value} than'
-                        self.advance() # consume 'is'
-                        self.advance() # consume 'greater'/'less'
-                        self.advance() # consume 'than'
-                        op_token = Token(TT_OPERATOR, full_op_str, op_token.line, op_token.column)
-                    else:
-                        self.advance() # Just a normal 'is' operator
-                else:
-                    self.advance() # Just a normal 'is' operator
-            else:
-                self.advance() # Consume the single-word operator
-            # --- END REFACTORED LOGIC ---
-
+            self.advance()
             right = self.parse_expression(self.get_precedence(op_token))
             left = BinOpNode(left, op_token, right)
-        
         return left
-
-# --- Main function to run the parser ---
-def parse_code(code):
-    """Takes source code and returns the root of the AST."""
-    from engage_lexer import Lexer
-    
-    # This assumes a refactored lexer that handles multi-word operators
-    def lexer_tokenize(self):
-        tokens = []
-        # This is a placeholder for the actual refactored lexer logic
-        # For now, we'll just use the old one, but the parser assumes the new one
-        while True:
-            token = self.get_next_token()
-            tokens.append(token)
-            if token.type == TT_EOF:
-                break
-        return tokens
-    Lexer.tokenize = lexer_tokenize
-
-    lexer = Lexer(code)
-    tokens = lexer.tokenize()
-    parser = Parser(tokens)
-    return parser.parse()
