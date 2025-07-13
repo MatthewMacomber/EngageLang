@@ -1,0 +1,19 @@
+// guess_the_number.engage
+// Demonstrates loops, I/O, and string manipulation.
+
+print with "I'm thinking of a number between 1 and 100.".
+let secret_number be 42.
+let guess be 0.
+
+while guess is not secret_number:
+    let user_input be input with "What is your guess? ".
+    let guess be number with user_input.
+
+    if guess is less than secret_number then
+        print with "Too low!".
+    otherwise if guess is greater than secret_number then
+        print with "Too high!".
+    end
+end
+
+print with "You guessed it! The number was 42.".

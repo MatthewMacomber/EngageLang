@@ -1,0 +1,16 @@
+// fibonacci.engage
+// Demonstrates recursive functions.
+
+to fibonacci with n:
+    if n is less than 2 then
+        return n.
+    otherwise
+        let a be fibonacci with n minus 1.
+        let b be fibonacci with n minus 2.
+        return a plus b.
+    end
+end
+
+print with "Calculating the 10th Fibonacci number...".
+let result be fibonacci with 10.
+print with result.

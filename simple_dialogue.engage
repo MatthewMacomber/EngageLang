@@ -1,0 +1,37 @@
+// simple_dialogue.engage
+// Demonstrates nested logic and state management for a simple dialogue tree.
+
+let player_has_quest_item be 0. // Use 0 for false, 1 for true
+
+to talk_to_guard:
+    print with "[Guard]: Halt! Who goes there?".
+    let response be input with "(1) I'm a traveler. (2) Do you need help? > ".
+
+    if response is "1" then
+        print with "[Guard]: A traveler, eh? Be on your way, but cause no trouble.".
+    otherwise if response is "2" then
+        print with "[Guard]: Help? Hah! ...Actually, yes. A goblin stole my helmet.".
+        print with "[Guard]: If you find it, I'll make it worth your while.".
+        
+        // Simulate finding the item
+        let player_has_quest_item be 1.
+    end
+end
+
+to check_on_guard_again:
+    if player_has_quest_item is 1 then
+        print with "[Guard]: You again! Did you find my helmet?".
+        let final_response be input with "(1) Yes, here it is. > ".
+        if final_response is "1" then
+            print with "[Guard]: My helmet! You have my thanks. Here's your reward.".
+            print with "You received 50 gold.".
+        end
+    otherwise
+        print with "[Guard]: Move along.".
+    end
+end
+
+// --- Start the simulation ---
+talk_to_guard.
+print with "--- Some time passes... ---".
+check_on_guard_again.
