@@ -1,5 +1,5 @@
-# This code assumes the Lexer from the 'engage_lexer_python' artifact is in a file
-# named 'engage_lexer.py'.
+# This code assumes it's working with a Lexer that can tokenize
+# multi-word operators like 'is not' into a single token.
 from engage_lexer import Lexer, Token, TT_EOF, TT_KEYWORD, TT_IDENTIFIER, TT_NUMBER, TT_STRING, TT_OPERATOR, TT_PUNCTUATION
 
 # --- AST Node Definitions ---
@@ -91,6 +91,14 @@ class IfNode(ASTNode):
     def __repr__(self):
         return f"If(cases={self.cases}, else_case={self.else_case})"
 
+class WhileNode(ASTNode):
+    """Represents a while loop."""
+    def __init__(self, condition_node, body_nodes):
+        self.condition_node = condition_node
+        self.body_nodes = body_nodes
+    def __repr__(self):
+        return f"While(condition={self.condition_node}, body={self.body_nodes})"
+
 # --- Parser ---
 
 class Parser:
@@ -151,8 +159,9 @@ class Parser:
                 return self.parse_if_statement()
             if self.current_token.value == 'return':
                 return self.parse_return_statement()
+            if self.current_token.value == 'while':
+                return self.parse_while_statement()
         
-        # If it's not a keyword-based statement, it must be an expression.
         return self.parse_expression()
 
     # --- Statement Parsers ---
@@ -161,6 +170,16 @@ class Parser:
         self.consume(TT_KEYWORD, 'return')
         expr = self.parse_expression()
         return ReturnNode(expr)
+
+    def parse_while_statement(self):
+        """Parses 'while {condition}: ... end'"""
+        self.consume(TT_KEYWORD, 'while')
+        condition = self.parse_expression()
+        if self.current_token.type == TT_PUNCTUATION and self.current_token.value == ':':
+            self.advance()
+        body = self.parse_statement_list(['end'])
+        self.consume(TT_KEYWORD, 'end')
+        return WhileNode(condition, body)
 
     def parse_if_statement(self):
         cases = []
@@ -175,12 +194,12 @@ class Parser:
         while self.current_token.type == TT_KEYWORD and self.current_token.value == 'otherwise':
             self.advance()
             if self.current_token.type == TT_KEYWORD and self.current_token.value == 'if':
-                self.advance() # 'otherwise if'
+                self.advance()
                 condition = self.parse_expression()
                 self.consume(TT_KEYWORD, 'then')
                 statements = self.parse_statement_list(['otherwise', 'end'])
                 cases.append((condition, statements))
-            else: # 'otherwise' (else)
+            else:
                 else_case = self.parse_statement_list(['end'])
                 break
         
@@ -217,6 +236,8 @@ class Parser:
 
     def get_precedence(self, token):
         """Returns the precedence level for a given operator token."""
+        if not token or token.type != TT_OPERATOR: 
+            return 0
         op = token.value
         if op in ('or'): return 1
         if op in ('and'): return 2
@@ -224,21 +245,16 @@ class Parser:
         if op in ('is greater than', '>', 'is less than', '<', '>=', '<='): return 4
         if op in ('plus', '+', 'minus', '-'): return 5
         if op in ('times', '*', 'divided by', '/'): return 6
-        return 0 # Not an operator
+        return 0
     
     def is_name_token(self, token):
-        """
-        Checks if a token can be considered a name. This works around the lexer
-        classifying common variable names like 'a' or 'n' as keywords.
-        """
-        # A specific list of keywords that are reserved for control flow and structure.
+        """Checks if a token can be considered a name."""
         RESERVED_KEYWORDS = [
             'if', 'then', 'otherwise', 'end', 'let', 'be', 'to', 'with', 'return',
             'while', 'for', 'repeat', 'and', 'or', 'not'
         ]
         if token.type == TT_IDENTIFIER:
             return True
-        # Allow keywords to be names if they aren't structurally important.
         if token.type == TT_KEYWORD and token.value not in RESERVED_KEYWORDS:
             return True
         return False
@@ -252,7 +268,7 @@ class Parser:
         raise SyntaxError(f"Expected a valid name but got {token.type}('{token.value}')")
 
     def parse_atom(self):
-        """Parses the most basic elements of an expression (literals, identifiers)."""
+        """Parses the most basic elements of an expression."""
         token = self.current_token
         if token.type == TT_NUMBER:
             self.advance()
@@ -261,9 +277,7 @@ class Parser:
             self.advance()
             return StringNode(token)
         
-        # Use the helper to check if the token is a valid name.
         if self.is_name_token(token):
-            # Check if it's a function call by peeking for 'with'
             if self.token_idx + 1 < len(self.tokens) and self.tokens[self.token_idx + 1].value == 'with':
                 return self.parse_function_call()
             self.advance()
@@ -286,7 +300,7 @@ class Parser:
         self.consume(TT_KEYWORD, 'with')
         
         arg_nodes = []
-        if not (self.current_token.type == TT_PUNCTUATION and self.current_token.value == '.'):
+        if self.current_token.type != TT_PUNCTUATION or self.current_token.value != '.':
              while True:
                 arg_nodes.append(self.parse_expression())
                 if self.current_token.type == TT_PUNCTUATION and self.current_token.value == ',':
@@ -300,44 +314,50 @@ class Parser:
         """Parses a full expression with correct operator precedence."""
         left = self.parse_atom()
 
-        while True:
+        while precedence < self.get_precedence(self.current_token):
             op_token = self.current_token
-            potential_op = op_token.value
             
+            # --- START REFACTORED LOGIC ---
+            # Check for multi-word operators and combine them before proceeding.
             if op_token.type == TT_OPERATOR and op_token.value == 'is':
                 if self.token_idx + 1 < len(self.tokens):
                     next_token = self.tokens[self.token_idx + 1]
                     if next_token.value == 'not':
-                        potential_op = 'is not'
-                    elif next_token.value == 'greater' or next_token.value == 'less':
-                        if self.token_idx + 2 < len(self.tokens) and self.tokens[self.token_idx + 2].value == 'than':
-                            potential_op = f'is {next_token.value} than'
+                        # Create a combined token and advance past the parts
+                        self.advance() # consume 'is'
+                        self.advance() # consume 'not'
+                        op_token = Token(TT_OPERATOR, 'is not', op_token.line, op_token.column)
+                    elif (next_token.value == 'greater' or next_token.value == 'less') and \
+                         self.token_idx + 2 < len(self.tokens) and self.tokens[self.token_idx + 2].value == 'than':
+                        # Create a combined token and advance past the parts
+                        full_op_str = f'is {next_token.value} than'
+                        self.advance() # consume 'is'
+                        self.advance() # consume 'greater'/'less'
+                        self.advance() # consume 'than'
+                        op_token = Token(TT_OPERATOR, full_op_str, op_token.line, op_token.column)
+                    else:
+                        self.advance() # Just a normal 'is' operator
+                else:
+                    self.advance() # Just a normal 'is' operator
+            else:
+                self.advance() # Consume the single-word operator
+            # --- END REFACTORED LOGIC ---
 
-            temp_op_token = Token(TT_OPERATOR, potential_op, op_token.line, op_token.column)
-            
-            if not (precedence < self.get_precedence(temp_op_token)):
-                break
-
-            self.advance()
-            if potential_op == 'is not':
-                self.advance()
-            elif potential_op in ('is greater than', 'is less than'):
-                self.advance()
-                self.advance()
-
-            right = self.parse_expression(self.get_precedence(temp_op_token))
-            left = BinOpNode(left, temp_op_token, right)
+            right = self.parse_expression(self.get_precedence(op_token))
+            left = BinOpNode(left, op_token, right)
         
         return left
 
 # --- Main function to run the parser ---
 def parse_code(code):
     """Takes source code and returns the root of the AST."""
-    from engage_lexer import Lexer # Assuming lexer is in another file
+    from engage_lexer import Lexer
     
-    # Add a tokenize method to the Lexer for convenience
+    # This assumes a refactored lexer that handles multi-word operators
     def lexer_tokenize(self):
         tokens = []
+        # This is a placeholder for the actual refactored lexer logic
+        # For now, we'll just use the old one, but the parser assumes the new one
         while True:
             token = self.get_next_token()
             tokens.append(token)
@@ -350,40 +370,3 @@ def parse_code(code):
     tokens = lexer.tokenize()
     parser = Parser(tokens)
     return parser.parse()
-
-# --- Example Usage ---
-if __name__ == '__main__':
-    # This example requires the engage_lexer.py file to be present
-    # to run successfully.
-    engage_code = """
-    to fibonacci with n:
-        if n is less than 2 then
-            return n.
-        otherwise
-            let a be fibonacci with n minus 1.
-            let b be fibonacci with n minus 2.
-            return a plus b.
-        end
-    end
-
-    print with "Calculating the 10th Fibonacci number...".
-    let result be fibonacci with 10.
-    print with result.
-    """
-
-    print("--- Parsing Engage Code ---")
-    print(f"CODE:\n{engage_code}\n")
-    print("--- ABSTRACT SYNTAX TREE ---")
-    
-    try:
-        ast = parse_code(engage_code)
-        import json
-        def default(o):
-            if isinstance(o, Token):
-                return f"Token({o.type}, '{o.value}')"
-            return o.__dict__
-        print(json.dumps(ast, default=default, indent=2))
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        print(f"\nParser Error: {e}")
