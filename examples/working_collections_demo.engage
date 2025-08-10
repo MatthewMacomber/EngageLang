@@ -1,0 +1,25 @@
+// working_collections_demo.engage
+// Working demo of collections functions
+
+print with "=== Collections Demo ===".
+
+// Create and populate a vector
+let numbers be Vector.
+let r1 be push with numbers, 5.
+let r2 be push with numbers, 2.
+let r3 be push with numbers, 8.
+let r4 be push with numbers, 1.
+
+print with "Created vector with 4 numbers".
+
+// Test sort function
+let sorted_nums be sort with numbers.
+print with "Sorted the vector".
+
+// Show sorted results
+print with "First sorted element:".
+print with sorted_nums[0].
+print with "Second sorted element:".
+print with sorted_nums[1].
+
+print with "=== Demo Complete ===".

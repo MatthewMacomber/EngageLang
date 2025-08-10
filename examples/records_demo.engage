@@ -1,0 +1,52 @@
+// records_demo.engage
+// Demonstrates defining records with properties and methods.
+
+define a record named Vector2:
+    // Properties
+    let x be 0.
+    let y be 0.
+
+    // A method that returns a new instance
+    to add with other:
+        let new_x be self.x plus other.x.
+        let new_y be self.y plus other.y.
+        return new Vector2 with x: new_x, y: new_y.
+    end
+
+    // A method that modifies the instance itself
+    to scale with factor:
+        set self.x to self.x times factor.
+        set self.y to self.y times factor.
+    end
+
+    // A method that calculates a value
+    to magnitude:
+        // Note: Engage doesn't have sqrt yet, so we'll just return squared magnitude
+        let x_squared be self.x times self.x.
+        let y_squared be self.y times self.y.
+        return x_squared plus y_squared.
+    end
+end
+
+// --- Using the Record ---
+
+print with "Creating vectors...".
+let v1 be new Vector2 with x: 3, y: 4.
+let v2 be new Vector2 with x: 1, y: 2.
+
+print with "Adding v1 and v2...".
+let v3 be v1.add with v2.
+print with "Result (v3) x:".
+print with v3.x. // Should be 4
+print with "Result (v3) y:".
+print with v3.y. // Should be 6
+
+print with "Scaling v1 by 10...".
+v1.scale with 10.
+print with "New v1.x:".
+print with v1.x. // Should be 30
+
+print with "Calculating magnitude of the new v1...".
+let mag_sq be v1.magnitude.
+print with "Squared magnitude of v1:".
+print with mag_sq. // Should be 30*30 + 40*40 = 900 + 1600 = 2500

@@ -1,0 +1,14 @@
+// simple_math.engage
+// Simple math operations test
+
+print with "=== Simple Math Demo ===".
+
+let a be 10.
+let b be 5.
+
+let sum be a plus b.
+let diff be a minus b.
+let product be a times b.
+
+print with "Math operations completed".
+print with "=== Demo Complete ===".

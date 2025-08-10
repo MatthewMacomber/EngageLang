@@ -1,0 +1,70 @@
+// fibonacci.engage
+// Demonstrates recursive functions with enhanced features.
+// Updated to showcase Tables for memoization and enhanced error handling.
+
+// Create a memoization table to cache results
+let memo_table be Table.
+
+to fibonacci_memoized with n:
+    // Convert number to string for table key
+    let key be to_string with n.
+    
+    // Check if we already computed this value
+    let has_cached be has_key with memo_table, key.
+    if has_cached is equal to 1 then
+        print with "Using cached result for " concatenated with key.
+        return memo_table[key].
+    end
+    
+    // Base cases
+    if n is less than 2 then
+        set memo_table[key] to n.
+        return n.
+    otherwise
+        let a be fibonacci_memoized with n minus 1.
+        let b be fibonacci_memoized with n minus 2.
+        let result be a plus b.
+        set memo_table[key] to result.
+        return result.
+    end
+end
+
+// Enhanced fibonacci function with input validation
+to safe_fibonacci with n:
+    if n is less than 0 then
+        print with "Error: Fibonacci is not defined for negative numbers".
+        return None.
+    end
+    
+    if n is greater than 40 then
+        print with "Warning: Computing large Fibonacci numbers may take time".
+    end
+    
+    return fibonacci_memoized with n.
+end
+
+print with "=== Enhanced Fibonacci Demo ===".
+print with "Calculating Fibonacci numbers with memoization...".
+
+// Calculate several Fibonacci numbers
+let result1 be safe_fibonacci with 10.
+print with "Fibonacci(10) = " concatenated with to_string with result1.
+
+let result2 be safe_fibonacci with 15.
+print with "Fibonacci(15) = " concatenated with to_string with result2.
+
+// Show memoization working by calculating 10 again
+let result3 be safe_fibonacci with 10.
+print with "Fibonacci(10) again = " concatenated with to_string with result3.
+
+// Show error handling
+let error_result be safe_fibonacci with -5.
+if error_result is equal to None then
+    print with "Handled negative input gracefully".
+end
+
+// Show cache statistics
+let cache_size be size with memo_table.
+print with "Memoization cache contains " concatenated with to_string with cache_size concatenated with " entries".
+
+print with "=== Fibonacci Demo Complete ===".

@@ -1,0 +1,22 @@
+// simple_fibonacci.engage
+// Simple recursive fibonacci without advanced features
+
+to fibonacci with n:
+    if n is less than 2 then
+        return n.
+    otherwise
+        let a be fibonacci with n minus 1.
+        let b be fibonacci with n minus 2.
+        return a plus b.
+    end
+end
+
+print with "=== Simple Fibonacci Demo ===".
+
+let result1 be fibonacci with 5.
+print with "Fibonacci(5) calculated".
+
+let result2 be fibonacci with 7.
+print with "Fibonacci(7) calculated".
+
+print with "=== Demo Complete ===".

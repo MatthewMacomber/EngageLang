@@ -1,0 +1,144 @@
+// guess_the_number.engage
+// Demonstrates loops, I/O, string manipulation, and game statistics tracking.
+// Updated to showcase Vectors, Records, and standard library functions.
+
+// Define a record to track game statistics
+to define GameStats:
+    property total_guesses with 0.
+    property guess_history with Vector.
+    property hints_given with Table.
+    property game_complete with 0.
+    
+    to add_guess with guess_value:
+        let len be push with self.guess_history, guess_value.
+        set self.total_guesses to self.total_guesses plus 1.
+        return len.
+    end
+    
+    to add_hint with hint_type:
+        let current_count be self.hints_given[hint_type].
+        if current_count is equal to None then
+            set self.hints_given[hint_type] to 1.
+        otherwise
+            set self.hints_given[hint_type] to current_count plus 1.
+        end
+    end
+    
+    to get_average_guess:
+        if self.total_guesses is equal to 0 then
+            return 0.
+        end
+        
+        let total be 0.
+        let i be 0.
+        while i is less than self.total_guesses:
+            let guess_val be self.guess_history[i].
+            set total to total plus guess_val.
+            set i to i plus 1.
+        end
+        
+        return total divided by self.total_guesses.
+    end
+    
+    to print_summary:
+        print with "=== Game Statistics ===".
+        print with "Total guesses: " concatenated with to_string with self.total_guesses.
+        
+        let avg_guess be self.get_average_guess.
+        print with "Average guess: " concatenated with to_string with avg_guess.
+        
+        let high_hints be self.hints_given["too_high"].
+        let low_hints be self.hints_given["too_low"].
+        if high_hints is not equal to None then
+            print with "Too high hints: " concatenated with to_string with high_hints.
+        end
+        if low_hints is not equal to None then
+            print with "Too low hints: " concatenated with to_string with low_hints.
+        end
+        
+        print with "Guess sequence:".
+        let i be 0.
+        while i is less than self.total_guesses:
+            let guess_num be i plus 1.
+            let guess_val be self.guess_history[i].
+            print with "  " concatenated with to_string with guess_num concatenated with ": " concatenated with to_string with guess_val.
+            set i to i plus 1.
+        end
+    end
+end
+
+// Enhanced input validation function
+to get_valid_number with prompt:
+    let valid_input be 0.
+    let result be 0.
+    
+    while valid_input is equal to 0:
+        let user_input be input with prompt.
+        let trimmed_input be trim with user_input.
+        
+        // Check if input is empty
+        let input_length be length with trimmed_input.
+        if input_length is equal to 0 then
+            print with "Please enter a number.".
+        otherwise
+            // Try to convert to number
+            let converted be number with trimmed_input.
+            if converted is not equal to None then
+                if converted is greater than 0 and converted is less than 101 then
+                    set result to converted.
+                    set valid_input to 1.
+                otherwise
+                    print with "Please enter a number between 1 and 100.".
+                end
+            otherwise
+                print with "Invalid input. Please enter a valid number.".
+            end
+        end
+    end
+    
+    return result.
+end
+
+// Main game logic
+print with "=== Enhanced Number Guessing Game ===".
+print with "I'm thinking of a number between 1 and 100.".
+print with "Can you guess what it is?".
+
+let secret_number be 42.
+let game_stats be new GameStats.
+let guess be 0.
+
+while guess is not secret_number:
+    let guess be get_valid_number with "What is your guess? ".
+    let guess_count be game_stats.add_guess with guess.
+    
+    if guess is less than secret_number then
+        print with "Too low! Try a higher number.".
+        game_stats.add_hint with "too_low".
+    otherwise if guess is greater than secret_number then
+        print with "Too high! Try a lower number.".
+        game_stats.add_hint with "too_high".
+    end
+end
+
+set game_stats.game_complete to 1.
+
+print with "🎉 Congratulations! You guessed it!".
+print with "The number was " concatenated with to_string with secret_number concatenated with ".".
+
+// Show game statistics
+game_stats.print_summary.
+
+// Provide performance feedback
+let total_guesses be game_stats.total_guesses.
+if total_guesses is less than 4 then
+    print with "Excellent! You're a guessing master!".
+otherwise if total_guesses is less than 7 then
+    print with "Good job! That was pretty efficient.".
+otherwise if total_guesses is less than 10 then
+    print with "Not bad! You got there in the end.".
+otherwise
+    print with "You might want to try a more systematic approach next time.".
+end
+
+print with "Thanks for playing!".

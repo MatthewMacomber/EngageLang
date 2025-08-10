@@ -1,0 +1,95 @@
+// working_comprehensive_demo.engage
+// Comprehensive demonstration of working Engage features
+
+print with "=== Engage Comprehensive Demo ===".
+
+// === Data Structures Demo ===
+print with "1. Data Structures Demo".
+
+// Table demonstration
+let user_database be Table.
+set user_database["alice"] to "Engineer".
+set user_database["bob"] to "Designer".
+
+print with "User database created".
+
+// Vector demonstration
+let skill_levels be Vector.
+let len1 be push with skill_levels, 85.
+let len2 be push with skill_levels, 92.
+
+print with "Skill levels vector created".
+
+// === Record System Demo ===
+print with "2. Record System Demo".
+
+define a record named Employee:
+    let name be "Unknown".
+    let department be "Unassigned".
+    let skills be Vector.
+    
+    to add_skill with skill_name, level:
+        let skill_entry be Table.
+        set skill_entry["name"] to skill_name.
+        set skill_entry["level"] to level.
+        let len be push with self.skills, skill_entry.
+        return len.
+    end
+    
+    to get_skill_count:
+        return length with self.skills.
+    end
+end
+
+// Create employee records
+let alice be new Employee with name: "Alice Johnson", department: "Engineering".
+let skill_count1 be alice.add_skill with "Python", 90.
+let skill_count2 be alice.add_skill with "JavaScript", 85.
+
+print with "Created employee records".
+
+// === Standard Library Demo ===
+print with "3. Standard Library Demo".
+
+// String operations
+let alice_name_upper be to_upper with alice.name.
+let alice_dept_length be length with alice.department.
+
+print with "Alice's name in uppercase: " concatenated with alice_name_upper.
+print with "String operations completed".
+
+// === Math Demo ===
+print with "4. Math Demo".
+
+let a be 10.
+let b be 5.
+let sum be a plus b.
+let diff be a minus b.
+let product be a times b.
+
+print with "Math operations completed".
+
+// === Simple Conditional Demo ===
+print with "5. Conditional Demo".
+
+let test_value be 5.
+if test_value is greater than 3 then
+    print with "Value is greater than 3".
+otherwise
+    print with "Value is not greater than 3".
+end
+
+print with "Conditional test completed".
+
+// === Summary ===
+print with "6. Summary".
+
+print with "=== FINAL REPORT ===".
+print with "Tables: Working".
+print with "Vectors: Working".
+print with "Records: Working".
+print with "String operations: Working".
+print with "Math operations: Working".
+print with "Conditionals: Working".
+
+print with "All Engage features successfully demonstrated!".

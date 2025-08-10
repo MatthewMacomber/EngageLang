@@ -1,0 +1,32 @@
+// hello_world.engage
+// A simple program demonstrating basic Engage features.
+// Updated to showcase string functions and type checking.
+
+print with "Hello from Engage!".
+
+let my_number be 42.
+let my_string be "The answer is".
+
+// Use string concatenation
+let full_message be my_string concatenated with " " concatenated with to_string with my_number.
+print with full_message.
+
+// Demonstrate string functions
+let message_length be length with full_message.
+print with "Message length: " concatenated with to_string with message_length.
+
+let uppercase_message be to_upper with full_message.
+print with "Uppercase: " concatenated with uppercase_message.
+
+// Demonstrate type checking
+let number_type be type_of with my_number.
+let string_type be type_of with my_string.
+
+print with "Type of " concatenated with to_string with my_number concatenated with " is: " concatenated with number_type.
+print with "Type of '" concatenated with my_string concatenated with "' is: " concatenated with string_type.
+
+// Simple calculation with math functions
+let squared be pow with my_number, 2.
+print with to_string with my_number concatenated with " squared is: " concatenated with to_string with squared.
+
+print with "Hello World demo complete!".
