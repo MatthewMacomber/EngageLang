@@ -1,4 +1,5 @@
 import re
+from engage_errors import EngageError, ErrorAggregator, SourceContextExtractor, create_syntax_error
 
 class Token:
     """A simple class to represent a token."""
@@ -19,28 +20,31 @@ TT_NUMBER = 'NUMBER'
 TT_STRING = 'STRING'
 TT_OPERATOR = 'OPERATOR'
 TT_PUNCTUATION = 'PUNCTUATION'
-TT_EOF = 'EOF'
+TT_EOL = 'EOL' # End of Line
+TT_EOF = 'EOF' # End of File
 
 # --- Language Definitions ---
-# This list now contains all keywords, including for concurrency.
 KEYWORDS = [
-    'create', 'let', 'be', 'with', 'the', 'value', 'define', 'as',
+    'create', 'let', 'be', 'with', 'the', 'value', 'as',
     'set', 'to', 'if', 'then', 'otherwise', 'end', 'switch', 'on',
     'case', 'default', 'repeat', 'times', 'while', 'for', 'each', 'in',
     'break', 'continue', 'returns', 'return', 'Ok', 'Error',
     'component', 'state', 'is', 'view', 'render', 'into', 'game_object',
     'on', 'step', 'draw', 'unsafe', 'pointer', 'dialect', 'interpret',
     'using', 'export', 'import', 'a',
-    # Concurrency Keywords
-    'run', 'concurrently', 'channel', 'named', 'send', 'through', 'receive', 'from'
+    'run', 'concurrently', 'channel', 'named', 'send', 'through', 'receive', 'from',
+    'define', 'fiber', 'yield',
+    'record', 'new', 'self',
+    'Table', 'Vector', 'Record', 'property'
 ]
 
-# All operators, including multi-word ones.
 OPERATORS = [
     'plus', '+', 'minus', '-', 'times', '*', 'divided by', '/', 'modulo', '%',
     'is', '==', 'is not', '!=', 'is greater than', '>', 'is less than', '<',
     'is greater than or equal to', '>=', 'is less than or equal to', '<=',
-    'and', 'or', 'not', 'concatenated with'
+    'and', 'or', 'not', 'concatenated with',
+    'call',
+    'is an', 'or return error', 'the ok value of', 'the error message of'
 ]
 
 PUNCTUATION = '.:,[]{}()<>='
@@ -48,14 +52,20 @@ PUNCTUATION = '.:,[]{}()<>='
 class Lexer:
     """
     The Lexer is responsible for breaking the source code
-    into a stream of tokens.
+    into a stream of tokens with enhanced error reporting.
     """
-    def __init__(self, text):
+    def __init__(self, text, file_path=None):
         self.text = text
+        self.file_path = file_path
         self.pos = 0
         self.current_char = self.text[self.pos] if self.pos < len(self.text) else None
         self.line = 1
         self.column = 1
+        
+        # Enhanced error reporting
+        self.error_aggregator = ErrorAggregator()
+        self.source_lines = SourceContextExtractor.extract_from_text(text)
+        self.error_aggregator.set_source_context(self.source_lines, file_path)
 
     def advance(self):
         """Move the position pointer and update the current character."""
@@ -66,9 +76,9 @@ class Lexer:
         self.column += 1
         self.current_char = self.text[self.pos] if self.pos < len(self.text) else None
 
-    def skip_whitespace(self):
-        """Skip over any whitespace characters."""
-        while self.current_char is not None and self.current_char.isspace():
+    def skip_space_and_tabs(self):
+        """Skip over any whitespace characters except newline."""
+        while self.current_char is not None and self.current_char in ' \t\r':
             self.advance()
 
     def skip_comment(self):
@@ -76,8 +86,7 @@ class Lexer:
         if self.current_char == '/' and self.peek() == '/':
             while self.current_char is not None and self.current_char != '\n':
                 self.advance()
-            self.advance()
-            return True
+            return True # Let the main loop handle the newline
         if self.current_char == '/' and self.peek() == '*':
             self.advance(); self.advance()
             while self.current_char is not None:
@@ -96,16 +105,22 @@ class Lexer:
     def number(self):
         """Return a multidigit integer or float consumed from the input."""
         result = ''
+        start_col = self.column
         while self.current_char is not None and self.current_char.isdigit():
             result += self.current_char
             self.advance()
         if self.current_char == '.':
-            result += '.'
-            self.advance()
-            while self.current_char is not None and self.current_char.isdigit():
-                result += self.current_char
+            # Check if it's a decimal point or a member access dot
+            if self.peek() and self.peek().isdigit():
+                result += '.'
                 self.advance()
-        return Token(TT_NUMBER, float(result), self.line, self.column)
+                while self.current_char is not None and self.current_char.isdigit():
+                    result += self.current_char
+                    self.advance()
+                return Token(TT_NUMBER, float(result), self.line, start_col)
+        
+        return Token(TT_NUMBER, int(result), self.line, start_col)
+
 
     def string(self):
         """Return a string literal."""
@@ -134,27 +149,26 @@ class Lexer:
     def get_next_token(self):
         """Lexical analyzer (also known as scanner or tokenizer)"""
         while self.current_char is not None:
-            if self.current_char.isspace():
-                self.skip_whitespace()
+            if self.current_char in ' \t\r':
+                self.skip_space_and_tabs()
                 continue
+            
+            if self.current_char == '\n':
+                line, col = self.line, self.column
+                self.advance()
+                return Token(TT_EOL, '\\n', line, col)
+
             if self.skip_comment():
                 continue
 
-            # --- START REFACTORED LOGIC ---
-            # Handle multi-word operators by checking for the longest match first.
-            # This is more robust than the previous implementation.
-            longest_op = None
-            for op in OPERATORS:
+            # Sort operators by length to match the longest one first (e.g., 'is not' before 'is')
+            sorted_ops = sorted(OPERATORS, key=len, reverse=True)
+            for op in sorted_ops:
                 if self.text[self.pos:].startswith(op):
-                    if longest_op is None or len(op) > len(longest_op):
-                        longest_op = op
+                    start_col = self.column
+                    for _ in op: self.advance()
+                    return Token(TT_OPERATOR, op, self.line, start_col)
             
-            if longest_op and len(longest_op) > 1:
-                start_col = self.column
-                for _ in longest_op: self.advance()
-                return Token(TT_OPERATOR, longest_op, self.line, start_col)
-            # --- END REFACTORED LOGIC ---
-
             if self.current_char.isdigit():
                 return self.number()
             if self.current_char == '"':
@@ -166,7 +180,31 @@ class Lexer:
                 self.advance()
                 return token
 
-            raise Exception(f"Lexer error: Unrecognized character '{self.current_char}' on line {self.line}, column {self.column}")
+            # Create enhanced error with suggestions
+            error = create_syntax_error(
+                message=f"Unrecognized character '{self.current_char}'",
+                line=self.line,
+                column=self.column,
+                file_path=self.file_path,
+                source_lines=self.source_lines
+            )
+            
+            # Add specific suggestions for common character mistakes
+            if self.current_char == '"':
+                error.add_suggestion("Use double quotes (\") for string literals")
+            elif self.current_char == "'":
+                error.add_suggestion("Engage uses double quotes (\") for strings, not single quotes")
+            elif self.current_char in '{}':
+                error.add_suggestion("Engage uses 'record' definitions instead of curly braces")
+            elif self.current_char == ';':
+                error.add_suggestion("Engage uses periods (.) to end statements, not semicolons")
+            elif self.current_char == '&':
+                error.add_suggestion("Use 'and' instead of '&' for logical operations")
+            elif self.current_char == '|':
+                error.add_suggestion("Use 'or' instead of '|' for logical operations")
+            
+            self.error_aggregator.add_error(error)
+            raise Exception(error.format_error())
 
         return Token(TT_EOF, None, self.line, self.column)
 
@@ -179,3 +217,19 @@ class Lexer:
             if token.type == TT_EOF:
                 break
         return tokens
+    
+    def has_errors(self):
+        """Check if any lexical errors were encountered."""
+        return self.error_aggregator.has_errors()
+    
+    def get_errors(self):
+        """Get all lexical errors that were encountered."""
+        return self.error_aggregator.errors
+    
+    def get_error_report(self):
+        """Get a formatted report of all lexical errors."""
+        return self.error_aggregator.format_all_errors()
+    
+    def clear_errors(self):
+        """Clear all accumulated errors."""
+        self.error_aggregator.clear()
