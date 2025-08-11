@@ -1,7 +1,8 @@
 # engage_ui_components.py
 # UI Component System Foundation for Engage Programming Language
 
-from engage_interpreter import Value, Function, BuiltInFunction, SymbolTable, EngageRuntimeError
+from engage_values import Value, Function, BuiltInFunction, SymbolTable
+from engage_errors import EngageRuntimeError
 import uuid
 from typing import Dict, List, Optional, Callable, Any
 

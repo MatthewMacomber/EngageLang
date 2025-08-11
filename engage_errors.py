@@ -305,9 +305,9 @@ class SourceContextExtractor:
         context_lines = []
         for line_num in range(start_line, end_line + 1):
             if line_num <= len(source_lines):
-                line_content = source_lines[line_num - 1]
+                line_content = self.source_lines[line_num - 1]
                 is_target_line = (line_num == line_number)
-                context_lines.append((line_num, line_content, is_target_line))
+                context_lines.append((line_num, line_content, is_error_line))
         
         return context_lines
 
@@ -891,3 +891,61 @@ def create_name_error(message: str, line: int, column: int,
         source_lines=source_lines,
         suggestions=suggestions
     )
+
+class EngageRuntimeError(Exception):
+    """Enhanced runtime error with comprehensive stack trace support."""
+
+    def __init__(self, message, line=None, column=None, file_path=None, stack_trace=None, error_type="Runtime Error"):
+        self.message = message
+        self.line = line
+        self.column = column
+        self.file_path = file_path
+        self.stack_trace = stack_trace.copy() if stack_trace else None
+        self.error_type = error_type
+        super().__init__(message)
+
+    def format_error(self, show_locals=False, compact=False):
+        """Format the error with stack trace and optional local variables."""
+        if compact:
+            return self.format_compact_error()
+
+        lines = [f"{self.error_type}: {self.message}"]
+
+        # Show immediate error location
+        if self.line and self.column:
+            location = f"Line {self.line}, Column {self.column}"
+            if self.file_path:
+                location += f" in {self.file_path}"
+            lines.append(f"  at {location}")
+
+        # Show stack trace
+        if self.stack_trace and self.stack_trace.frames:
+            lines.append("")
+            lines.append(self.stack_trace.format_stack_trace(show_locals))
+
+        return "\n".join(lines)
+
+    def format_compact_error(self):
+        """Format a compact single-line error message."""
+        location = ""
+        if self.stack_trace:
+            location = " " + self.stack_trace.format_compact_trace()
+        elif self.line:
+            location = f" at line {self.line}"
+            if self.file_path:
+                location += f" in {self.file_path}"
+
+        return f"{self.error_type}: {self.message}{location}"
+
+    def get_error_context(self):
+        """Get contextual information about the error."""
+        context = {
+            'message': self.message,
+            'type': self.error_type,
+            'line': self.line,
+            'column': self.column,
+            'file_path': self.file_path,
+            'call_chain': self.stack_trace.get_call_chain() if self.stack_trace else [],
+            'stack_depth': self.stack_trace.get_depth() if self.stack_trace else 0
+        }
+        return context

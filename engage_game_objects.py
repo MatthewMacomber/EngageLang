@@ -1,7 +1,8 @@
 # engage_game_objects.py
 # Game Object System Foundation for Engage Programming Language
 
-from engage_interpreter import Value, Function, BuiltInFunction, SymbolTable, EngageRuntimeError
+from engage_values import Value, Function, BuiltInFunction, SymbolTable
+from engage_errors import EngageRuntimeError
 import uuid
 import math
 from typing import Dict, List, Optional, Callable, Any, Tuple
