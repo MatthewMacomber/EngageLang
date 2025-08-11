@@ -1,0 +1,259 @@
+// EngageLang Compiler
+// This file will contain the source code for the new bootstrapped compiler.
+
+// --- Token Types ---
+let TT_KEYWORD be "KEYWORD".
+let TT_IDENTIFIER be "IDENTIFIER".
+let TT_NUMBER be "NUMBER".
+let TT_STRING be "STRING".
+let TT_OPERATOR be "OPERATOR".
+let TT_PUNCTUATION be "PUNCTUATION".
+let TT_EOL be "EOL".
+let TT_EOF be "EOF".
+
+// --- Language Definitions ---
+// ... (Lexer definitions are unchanged)
+
+// --- Token Definition ---
+to define Token:
+    property type be "".
+    property value be "".
+    property line be 0.
+    property column be 0.
+end
+
+// --- Lexer Definition ---
+to define Lexer:
+    // ... (Lexer implementation is unchanged)
+end
+
+// ... (Helper functions are unchanged)
+
+// --- AST Node Definitions ---
+to define ProgramNode: property statements be None. end
+to define VarAssignNode: property name_token be None. property value_node be None. end
+to define SetNode: property target_node be None. property value_node be None. end
+to define VarAccessNode: property name_token be None. end
+to define BinOpNode: property left_node be None. property op_token be None. property right_node be None. end
+to define UnaryOpNode: property op_token be None. property node be None. end
+to define NumberNode: property token be None. end
+to define StringNode: property token be None. end
+to define FuncDefNode: property name_token be None. property param_tokens be None. property body_nodes be None. end
+to define FuncCallNode: property node_to_call be None. property arg_nodes be None. end
+to define ReturnNode: property node_to_return be None. end
+to define IfNode: property cases be None. property else_case be None. end
+to define WhileNode: property condition_node be None. property body_nodes be None. end
+to define RecordDefNode: property name_token be None. property members be None. end
+to define NewInstanceNode: property name_token be None. property properties be None. end
+to define MemberAccessNode: property instance_node be None. property member_token be None. end
+to define SelfNode: end
+to define IndexAccessNode: property object_node be None. property index_node be None. end
+to define IndexAssignNode: property object_node be None. property index_node be None. property value_node be None. end
+
+// --- Parser Definition ---
+to define Parser:
+    // ... (Parser implementation is unchanged)
+end
+
+// --- Transpiler Definition ---
+
+to define Transpiler:
+    property global_code be "".
+    property main_code be "".
+    property indent_level be 0.
+
+    to transpile with node:
+        // Main entry point for transpilation
+        let final_code be self.visit with node.
+        return final_code.
+    end
+
+    to visit with node:
+        // Visitor dispatcher
+        if node is a ProgramNode: return self.visit_ProgramNode with node. end
+        if node is a VarAssignNode: return self.visit_VarAssignNode with node. end
+        if node is a SetNode: return self.visit_SetNode with node. end
+        if node is a VarAccessNode: return self.visit_VarAccessNode with node. end
+        if node is a BinOpNode: return self.visit_BinOpNode with node. end
+        if node is a NumberNode: return self.visit_NumberNode with node. end
+        if node is a StringNode: return self.visit_StringNode with node. end
+        if node is a FuncDefNode: return self.visit_FuncDefNode with node. end
+        if node is a FuncCallNode: return self.visit_FuncCallNode with node. end
+        if node is a ReturnNode: return self.visit_ReturnNode with node. end
+        if node is a IfNode: return self.visit_IfNode with node. end
+        if node is a WhileNode: return self.visit_WhileNode with node. end
+        if node is a RecordDefNode: return self.visit_RecordDefNode with node. end
+        if node is a NewInstanceNode: return self.visit_NewInstanceNode with node. end
+        if node is a MemberAccessNode: return self.visit_MemberAccessNode with node. end
+        if node is a SelfNode: return self.visit_SelfNode with node. end
+        return "". // Return empty string for unknown nodes
+    end
+
+    to visit_ProgramNode with node:
+        let headers be "#include <iostream>\n#include <string>\n#include <vector>\n\n".
+        set self.global_code to headers.
+
+        let i be 0.
+        while i < vector_length with node.statements:
+            let statement be node.statements[i].
+            let code be self.visit with statement.
+            set self.main_code to self.main_code concatenated with "    " concatenated with code concatenated with ";\n".
+            set i to i + 1.
+        end
+
+        return self.global_code concatenated with "int main() {\n" concatenated with self.main_code concatenated with "    return 0;\n}\n".
+    end
+
+    to visit_VarAssignNode with node:
+        let var_name be node.name_token.value.
+        let value_code be self.visit with node.value_node.
+        return "auto " concatenated with var_name concatenated with " = " concatenated with value_code.
+    end
+
+    to visit_SetNode with node:
+        let target_code be self.visit with node.target_node.
+        let value_code be self.visit with node.value_node.
+        return target_code concatenated with " = " concatenated with value_code.
+    end
+
+    to visit_VarAccessNode with node:
+        return node.name_token.value.
+    end
+
+    to visit_BinOpNode with node:
+        let left be self.visit with node.left_node.
+        let op be node.op_token.value.
+        let right be self.visit with node.right_node.
+
+        let op_map be new Table.
+        set op_map["plus"] to "+". set op_map["minus"] to "-". set op_map["times"] to "*".
+        set op_map["divided by"] to "/". set op_map["is"] to "==". set op_map["is not"] to "!=".
+        set op_map["is greater than"] to ">". set op_map["is less than"] to "<".
+        set op_map["and"] to "&&". set op_map["or"] to "||".
+
+        if table_has_key with op_map, op:
+            set op to op_map[op].
+        end
+
+        return "(" concatenated with left concatenated with " " concatenated with op concatenated with " " concatenated with right concatenated with ")".
+    end
+
+    to visit_FuncDefNode with node:
+        let func_name be node.name_token.value.
+        let params be "".
+        let i be 0.
+        while i < vector_length with node.param_tokens:
+            let param be node.param_tokens[i].
+            set params to params concatenated with "auto " concatenated with param.value.
+            if i < (vector_length with node.param_tokens) - 1:
+                set params to params concatenated with ", ".
+            end
+            set i to i + 1.
+        end
+
+        let body be "".
+        let i be 0.
+        while i < vector_length with node.body_nodes:
+            let statement be node.body_nodes[i].
+            set body to body concatenated with "    " concatenated with (self.visit with statement) concatenated with ";\n".
+            set i to i + 1.
+        end
+
+        let func_code be "auto " concatenated with func_name concatenated with "(" concatenated with params concatenated with ") {\n" concatenated with body concatenated with "}\n".
+        set self.global_code to self.global_code concatenated with func_code.
+        return "". // Function definitions are global, so they don't produce code in main
+    end
+
+    to visit_FuncCallNode with node:
+        let func_name be self.visit with node.node_to_call.
+        let args be "".
+        let i be 0.
+        while i < vector_length with node.arg_nodes:
+            let arg be node.arg_nodes[i].
+            set args to args concatenated with (self.visit with arg).
+            if i < (vector_length with node.arg_nodes) - 1:
+                set args to args concatenated with ", ".
+            end
+            set i to i + 1.
+        end
+        return func_name concatenated with "(" concatenated with args concatenated with ")".
+    end
+
+    to visit_IfNode with node:
+        let condition be self.visit with node.cases[0]["condition"].
+        let then_body be self.visit_block with node.cases[0]["body"].
+        let code be "if (" concatenated with condition concatenated with ") {\n" concatenated with then_body concatenated with "}".
+        if node.else_case is not None:
+            let else_body be self.visit_block with node.else_case.
+            set code to code concatenated with " else {\n" concatenated with else_body concatenated with "}".
+        end
+        return code.
+    end
+
+    to visit_block with statements:
+        let code be "".
+        let i be 0.
+        while i < vector_length with statements:
+            let statement be statements[i].
+            set code to code concatenated with "    " concatenated with (self.visit with statement) concatenated with ";\n".
+            set i to i + 1.
+        end
+        return code.
+    end
+
+    to visit_NumberNode with node:
+        return node.token.value.
+    end
+
+    to visit_StringNode with node:
+        return "\"" concatenated with node.token.value concatenated with "\"".
+    end
+end
+
+to main with args:
+    if (vector_length with args) < 3:
+        print with "Usage: engage compiler.engage <input_file> <output_file>".
+        return.
+    end
+
+    let input_file be args[1].
+    let output_file be args[2].
+
+    print with "Compiling " concatenated with input_file concatenated with " to " concatenated with output_file.
+
+    // 1. Read source file
+    print with "Reading source file...".
+    let source_result be read_file with input_file.
+    if source_result is an Error:
+        print with "Error reading file: " concatenated with (the error message of source_result).
+        return.
+    end
+    let source be the ok value of source_result.
+
+    // 2. Lexing
+    print with "Lexing...".
+    let lexer be new Lexer.
+    lexer.set_text with source.
+    let tokens be lexer.tokenize.
+
+    // 3. Parsing
+    print with "Parsing...".
+    let parser be new Parser.
+    parser.set_tokens with tokens.
+    let ast be parser.parse.
+
+    // 4. Transpiling
+    print with "Transpiling...".
+    let transpiler be new Transpiler.
+    let cpp_code be transpiler.transpile with ast.
+
+    // 5. Writing output file
+    print with "Writing output file...".
+    let write_result be write_file with output_file, cpp_code.
+    if write_result is an Error:
+        print with "Error writing file: " concatenated with (the error message of write_result).
+        return.
+    end
+
+    print with "Compilation successful!".
+end

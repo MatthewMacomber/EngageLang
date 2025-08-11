@@ -1,0 +1,5 @@
+// A simple EngageLang program to test the new compiler.
+
+to main with args:
+    print with "Hello from the compiled program!".
+end

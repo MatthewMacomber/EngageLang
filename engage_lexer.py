@@ -123,14 +123,48 @@ class Lexer:
 
 
     def string(self):
-        """Return a string literal."""
+        """Return a string literal, with support for escape sequences."""
         result = ''
-        self.advance()
+        self.advance()  # consume the opening "
         start_col = self.column
         while self.current_char is not None and self.current_char != '"':
-            result += self.current_char
+            if self.current_char == '\\':
+                self.advance()  # consume the backslash
+                if self.current_char is None:
+                    # Unterminated string
+                    break
+                if self.current_char == 'n':
+                    result += '\n'
+                elif self.current_char == 't':
+                    result += '\t'
+                elif self.current_char == 'r':
+                    result += '\r'
+                elif self.current_char == '"':
+                    result += '"'
+                elif self.current_char == '\\':
+                    result += '\\'
+                else:
+                    # For an invalid escape sequence, just add the character as is
+                    result += self.current_char
+            else:
+                result += self.current_char
             self.advance()
-        self.advance()
+
+        if self.current_char != '"':
+            # Handle unterminated string error
+            error = create_syntax_error(
+                message="Unterminated string literal",
+                line=self.line,
+                column=start_col,
+                file_path=self.file_path,
+                source_lines=self.source_lines
+            )
+            error.add_suggestion("Make sure to close your string with a double quote (\").")
+            self.error_aggregator.add_error(error)
+            # We can return what we have so far or just an empty token
+            return Token(TT_STRING, result, self.line, start_col)
+
+        self.advance()  # consume the closing "
         return Token(TT_STRING, result, self.line, start_col)
 
     def identifier(self):
