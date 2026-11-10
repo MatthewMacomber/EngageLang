@@ -1,0 +1,123 @@
+// task_scheduler_pipeline.engage
+// An asynchronous producer-consumer priority task pipeline in Engage v3.
+// Exercises: Fibers (task generator), Channels (inter-stage queues),
+// Records & Methods, sorting by priority, and Result-based execution.
+
+to define ScheduledTask:
+    property id with 0.
+    property name with "".
+    property priority with 5.
+    property payload with "".
+
+    to describe:
+        return "[Task #" concatenated with self.id concatenated with ": " concatenated with self.name concatenated with " (P" concatenated with self.priority concatenated with ")]".
+    end
+end
+
+// Fiber: Producer state machine yielding task specifications
+define a fiber named task_generator:
+    yield new ScheduledTask with id: 101, name: "IndexDatabase", priority: 8, payload: "db_cluster_0".
+    yield new ScheduledTask with id: 102, name: "BackupLogs", priority: 3, payload: "archive_storage".
+    yield new ScheduledTask with id: 103, name: "CorruptPacket", priority: 9, payload: "".
+    yield new ScheduledTask with id: 104, name: "DispatchNotifications", priority: 6, payload: "user_group_beta".
+    return "Generation complete.".
+end
+
+to validate_and_execute with task:
+    if (length with task.payload) is equal to 0 then
+        return error with "Payload is empty, task payload corrupted".
+    end
+    if task.priority is less than 1 then
+        return error with "Task priority must be >= 1".
+    end
+    let result_msg be "Processed payload for " concatenated with task.name.
+    return ok with result_msg.
+end
+
+to main_scheduler_pipeline:
+    print with "================================================".
+    print with "     ENGAGE TASK SCHEDULER & PIPELINE v3.0      ".
+    print with "================================================".
+
+    // 1. Setup channel for ingesting tasks
+    create a channel named task_queue.
+
+    // 2. Producer stage: Use Fiber to feed tasks into channel
+    print with "--- Stage 1: Ingesting Tasks via Fiber Generator ---".
+    let produced_count be 0.
+    while produced_count is less than 4:
+        let next_task be call task_generator.
+        if (check_record with next_task) is equal to 1 then
+            print with "Produced -> " concatenated with (next_task.describe).
+            send next_task through task_queue.
+            set produced_count to produced_count plus 1.
+        end
+    end
+
+    // 3. Buffer and sort tasks by priority (highest priority first)
+    print with "".
+    print with "--- Stage 2: Draining Queue and Priority Dispatch ---".
+    let job_batch be Vector.
+    let drained be 0.
+    while drained is less than produced_count:
+        let queued_job be receive from task_queue.
+        if queued_job is not none then
+            push with job_batch, queued_job.
+        end
+        set drained to drained plus 1.
+    end
+
+    // Manual bubble sort for custom Record comparison: descending priority
+    let n be job_batch.length.
+    let i be 0.
+    while i is less than n:
+        let j be 0.
+        let limit be n minus 1 minus i.
+        while j is less than limit:
+            let task_a be job_batch[j].
+            let task_b be job_batch[j plus 1].
+            if task_a.priority is less than task_b.priority then
+                set job_batch[j] to task_b.
+                set job_batch[j plus 1] to task_a.
+            end
+            set j to j plus 1.
+        end
+        set i to i plus 1.
+    end
+
+    print with "Priority sorting completed for " concatenated with n concatenated with " tasks.".
+
+    // 4. Consumer / Execution Stage
+    print with "".
+    print with "--- Stage 3: Execution and Error Handling ---".
+    let exec_index be 0.
+    let success_count be 0.
+    let failure_count be 0.
+
+    while exec_index is less than n:
+        let current_task be job_batch[exec_index].
+        print with "Executing " concatenated with (current_task.describe) concatenated with "...".
+
+        let outcome be validate_and_execute with current_task.
+        if outcome is an error then
+            print with "  ❌ Execution Failed: " concatenated with (the error message of outcome).
+            set failure_count to failure_count plus 1.
+        otherwise
+            print with "  ✅ Success: " concatenated with (the ok value of outcome).
+            set success_count to success_count plus 1.
+        end
+
+        set exec_index to exec_index plus 1.
+    end
+
+    // 5. Final Statistics Summary
+    print with "".
+    print with "--- Final Pipeline Summary ---".
+    print with "Total Tasks:    " concatenated with n.
+    print with "Successful:     " concatenated with success_count.
+    print with "Failed:         " concatenated with failure_count.
+    print with "Pipeline completed successfully.".
+end
+
+main_scheduler_pipeline with.
+

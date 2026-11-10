@@ -1,0 +1,38 @@
+// Game Object System Demo
+// This demonstrates the basic game object functionality
+
+// Create a player game object
+let player be create_game_object with "Player".
+let player_position be game_set_position with player, 100, 200.
+let player_sprite be game_set_sprite with player, "player.png", 32, 32.
+let player_tag be game_add_tag with player, "player".
+
+print with "Created player at position (100, 200)".
+
+// Create an enemy game object
+let enemy be create_game_object with "Enemy".
+let enemy_position be game_set_position with enemy, 150, 220.
+let enemy_sprite be game_set_sprite with enemy, "enemy.png", 24, 24.
+let enemy_tag be game_add_tag with enemy, "enemy".
+
+print with "Created enemy at position (150, 220)".
+
+// Check collision between player and enemy
+let collision_result be game_check_collision with player, enemy.
+if collision_result is greater than 0 then
+    print with "Player and enemy are colliding!".
+otherwise
+    print with "Player and enemy are not colliding.".
+end
+
+// Find all player objects
+let player_objects be game_find_objects_by_tag with "player".
+let player_count be length with player_objects.
+print with "Found " concatenated with player_count concatenated with " player objects".
+
+// Find all enemy objects  
+let enemy_objects be game_find_objects_by_tag with "enemy".
+let enemy_count be length with enemy_objects.
+print with "Found " concatenated with enemy_count concatenated with " enemy objects".
+
+print with "Game object system demo completed successfully!".

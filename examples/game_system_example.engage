@@ -1,0 +1,69 @@
+// game_system_example.engage
+// Demonstrates UI components, game objects, and module system integration
+
+to define GameState:
+    property players with Vector.
+    property ui_elements with Table.
+    property game_running with 0.
+    
+    to initialize_game:
+        // Create UI elements
+        let main_panel be create_panel.
+        ui_set_property with main_panel, "width", 800.
+        ui_set_property with main_panel, "height", 600.
+        set self.ui_elements["main_panel"] to main_panel.
+        
+        let start_button be create_button with "Start Game".
+        ui_set_property with start_button, "x", 350.
+        ui_set_property with start_button, "y", 300.
+        set self.ui_elements["start_button"] to start_button.
+        
+        ui_add_child with main_panel, start_button.
+        
+        set self.game_running to 1.
+    end
+    
+    to add_player with name, x, y:
+        let player_data be Table.
+        set player_data["name"] to name.
+        set player_data["x"] to x.
+        set player_data["y"] to y.
+        set player_data["score"] to 0.
+        
+        let len be push with self.players, player_data.
+        return len.
+    end
+    
+    to update_player_score with player_index, points:
+        let player be self.players[player_index].
+        let current_score be player["score"].
+        let new_score be current_score plus points.
+        set player["score"] to new_score.
+        return new_score.
+    end
+    
+    to get_game_summary:
+        let player_count be length with self.players.
+        let summary_start be "Game with ".
+        let count_str be to_string with player_count.
+        let summary be summary_start concatenated with count_str.
+        return summary concatenated with " players".
+    end
+end
+
+// Main game application
+print with "Initializing game system...".
+
+let game be new GameState.
+game.initialize_game.
+
+let player1_count be game.add_player with "Alice", 100, 200.
+let player2_count be game.add_player with "Bob", 300, 400.
+
+let alice_score be game.update_player_score with 0, 150.
+let bob_score be game.update_player_score with 1, 200.
+
+let game_summary be game.get_game_summary.
+print with game_summary.
+
+print with "Game system initialized successfully!".

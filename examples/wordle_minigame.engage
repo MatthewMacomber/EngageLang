@@ -1,0 +1,143 @@
+// wordle_minigame.engage
+// A complete Wordle clone in Engage v3.
+// Exercises: Vectors, Tables, string functions (char_at, to_upper, length),
+// duplicate letter resolution, clue evaluation, and game state reporting.
+
+to evaluate_guess with secret, guess:
+    let secret_upper be to_upper with secret.
+    let guess_upper be to_upper with guess.
+
+    let secret_len be length with secret_upper.
+    let guess_len be length with guess_upper.
+
+    if guess_len is not equal to secret_len then
+        return error with "Guess must be exactly 5 letters long!".
+    end
+
+    // Clue status representation:
+    // 2 = Exact match (🟩 Green)
+    // 1 = Present in word but different position (🟨 Yellow)
+    // 0 = Not in word (⬜ Gray)
+    let clues be Vector.
+    let secret_used be Vector.
+    let i be 0.
+    while i is less than secret_len:
+        push with clues, 0.
+        push with secret_used, 0.
+        set i to i plus 1.
+    end
+
+    // First pass: Find exact matches (Green)
+    set i to 0.
+    while i is less than secret_len:
+        let sc be char_at with secret_upper, i.
+        let gc be char_at with guess_upper, i.
+        if sc is equal to gc then
+            set clues[i] to 2.
+            set secret_used[i] to 1.
+        end
+        set i to i plus 1.
+    end
+
+    // Second pass: Find misplaced matches (Yellow)
+    set i to 0.
+    while i is less than secret_len:
+        if clues[i] is equal to 0 then
+            let gc be char_at with guess_upper, i.
+            let j be 0.
+            let matched be 0.
+            while j is less than secret_len and matched is equal to 0:
+                if secret_used[j] is equal to 0 then
+                    let sc be char_at with secret_upper, j.
+                    if gc is equal to sc then
+                        set clues[i] to 1.
+                        set secret_used[j] to 1.
+                        set matched to 1.
+                    end
+                end
+                set j to j plus 1.
+            end
+        end
+        set i to i plus 1.
+    end
+
+    return ok with clues.
+end
+
+to format_clue_emojis with clues:
+    let out be "".
+    let i be 0.
+    let total be clues.length.
+    while i is less than total:
+        let score be clues[i].
+        switch on score:
+            case 2:
+                set out to out concatenated with "🟩".
+            case 1:
+                set out to out concatenated with "🟨".
+            otherwise:
+                set out to out concatenated with "⬜".
+        end
+        set i to i plus 1.
+    end
+    return out.
+end
+
+to is_all_correct with clues:
+    let i be 0.
+    let total be clues.length.
+    while i is less than total:
+        if clues[i] is not equal to 2 then
+            return 0.
+        end
+        set i to i plus 1.
+    end
+    return 1.
+end
+
+to run_wordle_match with secret_word, guesses:
+    print with "========================================".
+    print with "         ENGAGE WORDLE v3.0             ".
+    print with "========================================".
+    print with "Target secret word has 5 letters. Max attempts: 6.".
+    print with "".
+
+    let attempt be 0.
+    let solved be 0.
+    let guess_count be guesses.length.
+
+    while attempt is less than guess_count and solved is equal to 0:
+        let current_guess be guesses[attempt].
+        let guess_num be attempt plus 1.
+        let eval_res be evaluate_guess with secret_word, current_guess.
+
+        if eval_res is an error then
+            print with "Attempt " concatenated with guess_num concatenated with ": [" concatenated with current_guess concatenated with "] ❌ Error: " concatenated with (the error message of eval_res).
+        otherwise
+            let clues be the ok value of eval_res.
+            let visual be format_clue_emojis with clues.
+            print with "Attempt " concatenated with guess_num concatenated with ": [" concatenated with (to_upper with current_guess) concatenated with "] -> " concatenated with visual.
+            if (is_all_correct with clues) is equal to 1 then
+                set solved to 1.
+                print with "🎉 Brilliant! Solved in " concatenated with guess_num concatenated with " guesses!".
+            end
+        end
+        set attempt to attempt plus 1.
+    end
+
+    if solved is equal to 0 then
+        print with "Game Over! The secret word was: " concatenated with (to_upper with secret_word).
+    end
+    print with "========================================".
+    print with "".
+end
+
+// Simulation: Test game with secret word "ROBOT"
+let demo_guesses be Vector.
+push with demo_guesses, "CRANE".  // ⬜🟨⬜⬜⬜
+push with demo_guesses, "TOAST".  // 🟨🟨⬜⬜🟩
+push with demo_guesses, "MOTOR".  // ⬜🟩🟨🟩🟨
+push with demo_guesses, "ROBOT".  // 🟩🟩🟩🟩🟩
+
+run_wordle_match with "ROBOT", demo_guesses.
+

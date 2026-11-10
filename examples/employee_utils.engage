@@ -1,0 +1,155 @@
+// employee_utils.engage
+// Utility module demonstrating export functionality with complex data structures
+
+// Export a shared configuration table
+export let company_config be Table.
+set company_config["name"] to "Tech Innovations Inc".
+set company_config["max_employees"] to 100.
+set company_config["departments"] to Vector.
+
+// Initialize departments vector
+let dept1 be push with company_config["departments"], "Engineering".
+let dept2 be push with company_config["departments"], "Design".
+let dept3 be push with company_config["departments"], "Marketing".
+
+// Export a record definition for employee management
+to export define EmployeeRecord:
+    property id with 0.
+    property name with "".
+    property department with "".
+    property skills with Vector.
+    property salary with 0.
+    
+    to add_skill with skill_name, proficiency:
+        let skill_data be Table.
+        set skill_data["name"] to skill_name.
+        set skill_data["proficiency"] to proficiency.
+        let len be push with self.skills, skill_data.
+        return len.
+    end
+    
+    to calculate_skill_bonus:
+        let total_proficiency be 0.
+        let skill_count be length with self.skills.
+        let i be 0.
+        
+        while i is less than skill_count:
+            let skill be self.skills[i].
+            let proficiency be skill["proficiency"].
+            set total_proficiency to total_proficiency plus proficiency.
+            set i to i plus 1.
+        end
+        
+        if skill_count is greater than 0:
+            let average_proficiency be total_proficiency divided by skill_count.
+            return self.salary times average_proficiency divided by 100.
+        otherwise:
+            return 0.
+        end
+    end
+    
+    to get_department_code:
+        let dept_upper be to_upper with self.department.
+        let dept_length be length with self.department.
+        
+        if dept_length is greater than 3:
+            return substring with dept_upper, 0, 3.
+        otherwise:
+            return dept_upper.
+        end
+    end
+end
+
+// Export utility functions for employee management
+to export validate_employee_data with name, department, salary:
+    let errors be Vector.
+    
+    // Validate name
+    let name_length be length with name.
+    if name_length is less than 2:
+        let len1 be push with errors, "Name must be at least 2 characters".
+    end
+    
+    // Validate department
+    let departments be company_config["departments"].
+    let dept_count be length with departments.
+    let dept_found be 0.
+    let i be 0.
+    
+    while i is less than dept_count:
+        let dept be departments[i].
+        if dept is equal to department:
+            set dept_found to 1.
+        end
+        set i to i plus 1.
+    end
+    
+    if dept_found is equal to 0:
+        let len2 be push with errors, "Invalid department".
+    end
+    
+    // Validate salary
+    if salary is less than 30000:
+        let len3 be push with errors, "Salary must be at least 30000".
+    end
+    
+    let error_count be length with errors.
+    if error_count is equal to 0:
+        return "valid".
+    otherwise:
+        return errors.
+    end
+end
+
+to export create_employee_report with employee:
+    let report be Table.
+    set report["id"] to employee.id.
+    set report["name"] to employee.name.
+    set report["department"] to employee.department.
+    set report["department_code"] to employee.get_department_code.
+    set report["base_salary"] to employee.salary.
+    set report["skill_bonus"] to employee.calculate_skill_bonus.
+    set report["total_compensation"] to employee.salary plus employee.calculate_skill_bonus.
+    set report["skill_count"] to length with employee.skills.
+    
+    return report.
+end
+
+to export calculate_department_stats with employees:
+    let stats be Table.
+    let dept_counts be Table.
+    let dept_salaries be Table.
+    
+    let employee_count be length with employees.
+    let i be 0.
+    
+    // Count employees and sum salaries by department
+    while i is less than employee_count:
+        let employee be employees[i].
+        let dept be employee.department.
+        
+        // Count employees in department
+        if has_key with dept_counts, dept:
+            let current_count be dept_counts[dept].
+            set dept_counts[dept] to current_count plus 1.
+        otherwise:
+            set dept_counts[dept] to 1.
+        end
+        
+        // Sum salaries in department
+        if has_key with dept_salaries, dept:
+            let current_sum be dept_salaries[dept].
+            set dept_salaries[dept] to current_sum plus employee.salary.
+        otherwise:
+            set dept_salaries[dept] to employee.salary.
+        end
+        
+        set i to i plus 1.
+    end
+    
+    set stats["department_counts"] to dept_counts.
+    set stats["department_salary_totals"] to dept_salaries.
+    set stats["total_employees"] to employee_count.
+    
+    return stats.
+end

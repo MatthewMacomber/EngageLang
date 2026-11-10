@@ -1,0 +1,33 @@
+// fiber_demo.engage
+// Demonstrates Fibers for cooperative multitasking.
+
+// Define a fiber that counts down from 3.
+define a fiber named countdown:
+    print with "[Fiber]: Starting countdown...".
+    yield 3.
+    yield 2.
+    yield 1.
+    print with "[Fiber]: ...Done.".
+    return "Blast off!".
+end
+
+print with "Calling the fiber for the first time...".
+let step1 be call countdown.
+print with "Fiber yielded:" concatenated with " " concatenated with step1.
+
+print with "Resuming the fiber...".
+let step2 be call countdown.
+print with "Fiber yielded:" concatenated with " " concatenated with step2.
+
+print with "Resuming again...".
+let step3 be call countdown.
+print with "Fiber yielded:" concatenated with " " concatenated with step3.
+
+print with "One more time to get the return value...".
+let final_result be call countdown.
+print with "Fiber returned:" concatenated with " " concatenated with final_result.
+
+// Calling it again will do nothing as it's finished.
+let after_done be call countdown.
+print with "Calling a finished fiber returns:" concatenated with " " concatenated with after_done.
+

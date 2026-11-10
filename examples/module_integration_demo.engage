@@ -1,0 +1,211 @@
+// module_integration_demo.engage
+// Comprehensive demo showing module system integration with all other features
+
+print with "=== Module Integration Demo ===".
+
+// Import employee management utilities
+from "employee_utils" import company_config, EmployeeRecord, validate_employee_data, create_employee_report, calculate_department_stats.
+
+// Import UI components module
+from "ui_components_module" import ui_theme, AdvancedPanel, DataDrivenUI, create_themed_button, calculate_layout_grid.
+
+print with "Successfully imported modules!".
+
+// === Using Imported Data Structures ===
+print with "\n1. Using Imported Configuration".
+
+let company_name be company_config["name"].
+let max_employees be company_config["max_employees"].
+let departments be company_config["departments"].
+
+print with "Company: " concatenated with company_name.
+print with "Max employees: " concatenated with to_string with max_employees.
+print with "Departments available: " concatenated with to_string with length with departments.
+
+// === Using Imported Records ===
+print with "\n2. Creating Employees with Imported Record".
+
+let employee1 be new EmployeeRecord with id 1, name "Alice Johnson", department "Engineering", salary 75000.
+let skill1 be employee1.add_skill with "Python", 90.
+let skill2 be employee1.add_skill with "JavaScript", 85.
+let skill3 be employee1.add_skill with "SQL", 80.
+
+let employee2 be new EmployeeRecord with id 2, name "Bob Smith", department "Design", salary 65000.
+let skill4 be employee2.add_skill with "Photoshop", 95.
+let skill5 be employee2.add_skill with "Illustrator", 88.
+
+let employee3 be new EmployeeRecord with id 3, name "Charlie Brown", department "Marketing", salary 60000.
+let skill6 be employee3.add_skill with "Analytics", 75.
+let skill7 be employee3.add_skill with "Communication", 92.
+
+print with "Created 3 employees with skills".
+
+// === Using Imported Validation Functions ===
+print with "\n3. Validating Employee Data".
+
+let validation1 be validate_employee_data with "Alice Johnson", "Engineering", 75000.
+let validation2 be validate_employee_data with "X", "InvalidDept", 20000.
+
+print with "Alice validation result: " concatenated with validation1.
+
+if validation2 is not equal to "valid":
+    print with "Invalid employee data detected (as expected)".
+end
+
+// === Creating Employee Reports ===
+print with "\n4. Generating Employee Reports".
+
+let alice_report be create_employee_report with employee1.
+let bob_report be create_employee_report with employee2.
+
+let alice_total be alice_report["total_compensation"].
+let bob_total be bob_report["total_compensation"].
+
+print with "Alice total compensation: " concatenated with to_string with alice_total.
+print with "Bob total compensation: " concatenated with to_string with bob_total.
+
+// === Department Statistics ===
+print with "\n5. Calculating Department Statistics".
+
+let all_employees be Vector.
+let len1 be push with all_employees, employee1.
+let len2 be push with all_employees, employee2.
+let len3 be push with all_employees, employee3.
+
+let dept_stats be calculate_department_stats with all_employees.
+let total_employees be dept_stats["total_employees"].
+let dept_counts be dept_stats["department_counts"].
+
+print with "Total employees: " concatenated with to_string with total_employees.
+
+// === UI System Integration ===
+print with "\n6. Creating Data-Driven UI".
+
+let ui_system be new DataDrivenUI.
+ui_system.initialize_container with 800, 600.
+
+// Create employee data panel
+let employee_names be Vector.
+let name1 be push with employee_names, employee1.name.
+let name2 be push with employee_names, employee2.name.
+let name3 be push with employee_names, employee3.name.
+
+let employee_panel be ui_system.create_data_panel with "employees", "Employee List", employee_names.
+
+// Create department data panel
+let department_list be company_config["departments"].
+let dept_panel be ui_system.create_data_panel with "departments", "Departments", department_list.
+
+// Create control panel
+let controls_config be Table.
+set controls_config["Add Employee"] to "button".
+set controls_config["Generate Report"] to "button".
+set controls_config["Search"] to "input".
+set controls_config["Filter"] to "input".
+
+let control_panel be ui_system.create_control_panel with controls_config.
+
+let ui_summary be ui_system.get_ui_summary.
+let total_panels be ui_summary["total_panels"].
+let total_components be ui_summary["total_components"].
+
+print with "Created UI with " concatenated with to_string with total_panels.
+print with " panels and " concatenated with to_string with total_components.
+print with " total components".
+
+// === Advanced UI Layout Calculation ===
+print with "\n7. Advanced UI Layout".
+
+let grid_info be calculate_layout_grid with 800, 600, 12.
+let grid_cols be grid_info["columns"].
+let grid_rows be grid_info["rows"].
+let item_width be grid_info["item_width"].
+
+print with "Optimal grid layout: " concatenated with to_string with grid_cols.
+print with " columns x " concatenated with to_string with grid_rows.
+print with " rows".
+
+// === Themed UI Components ===
+print with "\n8. Creating Themed Components".
+
+let primary_button be create_themed_button with "Primary Action", "primary".
+let secondary_button be create_themed_button with "Secondary", "secondary".
+
+print with "Created themed buttons using imported theme".
+
+// === Complex Integration Example ===
+print with "\n9. Complex Integration Example".
+
+to define CompanyDashboard:
+    property employee_data with Vector.
+    property ui_system with None.
+    property reports with Table.
+    property statistics with Table.
+    
+    to initialize:
+        set self.ui_system to new DataDrivenUI.
+        self.ui_system.initialize_container with 1000, 700.
+    end
+    
+    to add_employee with employee:
+        let len be push with self.employee_data, employee.
+        
+        // Generate report for new employee
+        let report be create_employee_report with employee.
+        set self.reports[employee.name] to report.
+        
+        return len.
+    end
+    
+    to update_statistics:
+        let stats be calculate_department_stats with self.employee_data.
+        set self.statistics to stats.
+        
+        // Update UI with new statistics
+        let employee_count be length with self.employee_data.
+        let stats_data be Vector.
+        let stat1 be push with stats_data, "Total: " concatenated with to_string with employee_count.
+        
+        let stats_panel be self.ui_system.create_data_panel with "stats", "Statistics", stats_data.
+    end
+    
+    to generate_company_summary:
+        let summary be Table.
+        set summary["company_name"] to company_config["name"].
+        set summary["employee_count"] to length with self.employee_data.
+        set summary["department_count"] to length with company_config["departments"].
+        set summary["ui_panels"] to size with self.ui_system.data_panels.
+        
+        return summary.
+    end
+end
+
+// Create and populate company dashboard
+let dashboard be new CompanyDashboard.
+dashboard.initialize.
+
+let emp_count1 be dashboard.add_employee with employee1.
+let emp_count2 be dashboard.add_employee with employee2.
+let emp_count3 be dashboard.add_employee with employee3.
+
+dashboard.update_statistics.
+
+let company_summary be dashboard.generate_company_summary.
+let final_employee_count be company_summary["employee_count"].
+let final_ui_panels be company_summary["ui_panels"].
+
+print with "\n=== FINAL INTEGRATION SUMMARY ===".
+print with "Company: " concatenated with company_summary["company_name"].
+print with "Employees managed: " concatenated with to_string with final_employee_count.
+print with "Departments: " concatenated with to_string with company_summary["department_count"].
+print with "UI panels created: " concatenated with to_string with final_ui_panels.
+
+print with "\n🎉 Module integration demo completed successfully!".
+print with "This demo shows:".
+print with "✓ Import/export functionality working".
+print with "✓ Complex data structures shared between modules".
+print with "✓ Records defined in modules and used in main code".
+print with "✓ Standard library functions used across modules".
+print with "✓ UI components integrated with business logic".
+print with "✓ Error handling and validation across module boundaries".
+print with "✓ All features working together seamlessly".

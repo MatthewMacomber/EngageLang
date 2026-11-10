@@ -1,0 +1,50 @@
+// ui_demo.engage
+// Comprehensive demonstration of UI components
+
+print with "Creating UI components demonstration...".
+
+// Create a main panel
+let main_panel be create_panel.
+ui_set_property with main_panel, "width", 400.
+ui_set_property with main_panel, "height", 300.
+print with "Main panel created".
+
+// Create a button
+let my_button be create_button with "Click Me!".
+ui_set_property with my_button, "x", 50.
+ui_set_property with my_button, "y", 50.
+print with "Button created".
+
+// Create a label
+let my_label be create_label with "Hello, UI World!".
+ui_set_property with my_label, "x", 50.
+ui_set_property with my_label, "y", 20.
+print with "Label created".
+
+// Create a text input
+let my_input be create_text_input with "Enter text here...".
+ui_set_property with my_input, "x", 50.
+ui_set_property with my_input, "y", 100.
+ui_set_property with my_input, "width", 200.
+print with "Text input created".
+
+// Add components to the panel
+ui_add_child with main_panel, my_label.
+ui_add_child with main_panel, my_button.
+ui_add_child with main_panel, my_input.
+print with "Components added to panel".
+
+// Create a nested panel
+let sub_panel be create_panel.
+ui_set_property with sub_panel, "x", 250.
+ui_set_property with sub_panel, "y", 50.
+ui_set_property with sub_panel, "width", 120.
+ui_set_property with sub_panel, "height", 100.
+
+let sub_button be create_button with "Sub Button".
+ui_add_child with sub_panel, sub_button.
+ui_add_child with main_panel, sub_panel.
+print with "Nested panel created".
+
+print with "UI component demonstration complete!".
+print with "All components created and organized successfully.".

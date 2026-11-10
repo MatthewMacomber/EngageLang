@@ -1,0 +1,120 @@
+// math_utilities.engage
+// A utility module demonstrating export functionality with mathematical operations
+
+// Export constants
+export let PI be 3.14159.
+export let E be 2.71828.
+
+// Private helper function (not exported)
+to validate_positive with value:
+    if value is less than 0 then
+        return 0.
+    end
+    return 1.
+end
+
+// Export mathematical utility functions
+to export calculate_circle_area with radius:
+    let is_valid be validate_positive with radius.
+    if is_valid is equal to 0 then
+        print with "Error: Radius must be positive".
+        return None.
+    end
+    
+    let radius_squared be pow with radius, 2.
+    return PI times radius_squared.
+end
+
+to export calculate_circle_circumference with radius:
+    let is_valid be validate_positive with radius.
+    if is_valid is equal to 0 then
+        print with "Error: Radius must be positive".
+        return None.
+    end
+    
+    return 2 times PI times radius.
+end
+
+to export factorial with n:
+    if n is less than 0 then
+        print with "Error: Factorial not defined for negative numbers".
+        return None.
+    end
+    
+    if n is equal to 0 or n is equal to 1 then
+        return 1.
+    end
+    
+    let result be 1.
+    let i be 2.
+    while i is less than or equal to n:
+        set result to result times i.
+        set i to i plus 1.
+    end
+    
+    return result.
+end
+
+to export is_prime with n:
+    if n is less than 2 then
+        return 0.
+    end
+    
+    if n is equal to 2 then
+        return 1.
+    end
+    
+    let i be 2.
+    let sqrt_n be sqrt with n.
+    while i is less than or equal to sqrt_n:
+        let remainder be n modulo i.
+        if remainder is equal to 0 then
+            return 0.
+        end
+        set i to i plus 1.
+    end
+    
+    return 1.
+end
+
+// Export a record for complex mathematical operations
+to export define MathCalculator:
+    property precision with 2.
+    property last_result with 0.
+    property operation_history with Vector.
+    
+    to round_to_precision with value:
+        // Simple rounding implementation
+        let multiplier be pow with 10, self.precision.
+        let scaled be value times multiplier.
+        let rounded_scaled be abs with scaled.  // Simple rounding
+        return rounded_scaled divided by multiplier.
+    end
+    
+    to add_to_history with operation, result:
+        let entry be Table.
+        set entry["operation"] to operation.
+        set entry["result"] to result.
+        let len be push with self.operation_history, entry.
+        return len.
+    end
+    
+    to calculate_compound_interest with principal, rate, time:
+        let rate_decimal be rate divided by 100.
+        let base be 1 plus rate_decimal.
+        let power be pow with base, time.
+        let result be principal times power.
+        
+        set self.last_result to result.
+        let rounded_result be self.round_to_precision with result.
+        let operation_desc be "Compound interest: P=" concatenated with to_string with principal.
+        let hist_len be self.add_to_history with operation_desc, rounded_result.
+        
+        return rounded_result.
+    end
+    
+    to get_history_summary:
+        let history_size be length with self.operation_history.
+        return "Performed " concatenated with to_string with history_size concatenated with " calculations".
+    end
+end

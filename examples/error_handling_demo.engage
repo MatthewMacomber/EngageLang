@@ -1,0 +1,32 @@
+// error_handling_demo.engage
+// Demonstrates the Result type and explicit error handling.
+
+// This function tries to parse a number and propagates any error.
+to parse_number with text:
+    let result be number with text or return error.
+    return Ok with result.
+end
+
+// --- Test Case 1: Successful Conversion ---
+print with "Attempting to parse a valid number string...".
+let good_result be parse_number with "123.45".
+
+if good_result is an Error then
+    print with "This should not happen!".
+otherwise
+    let final_number be the ok value of good_result.
+    print with "Success! The number is:" concatenated with " " concatenated with final_number.
+end
+
+print with "". // Blank line for spacing
+
+// --- Test Case 2: Failed Conversion ---
+print with "Attempting to parse an invalid string...".
+let bad_result be parse_number with "hello".
+
+if bad_result is an Error then
+    let error_message be the error message of bad_result.
+    print with "Caught expected error: " concatenated with error_message.
+otherwise
+    print with "This should have failed!".
+end

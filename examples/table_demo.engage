@@ -1,0 +1,67 @@
+// table_demo.engage
+// Demonstrates the Table (hash map) data structure with all its features
+
+print with "=== Table Demo ===".
+
+// Create a new table
+let user_data be Table.
+print with "Created empty table".
+
+// Add some data using bracket notation
+set user_data["name"] to "Alice".
+set user_data["age"] to 30.
+set user_data["city"] to "New York".
+set user_data["occupation"] to "Engineer".
+
+print with "Added user data to table".
+
+// Access data using bracket notation
+print with "User name:".
+print with user_data["name"].
+print with "User age:".
+print with user_data["age"].
+
+// Check table size
+let table_size be size with user_data.
+print with "Table size:".
+print with table_size.
+
+// Check if keys exist
+let has_name be has_key with user_data, "name".
+let has_email be has_key with user_data, "email".
+
+print with "Has 'name' key:".
+print with has_name.
+print with "Has 'email' key:".
+print with has_email.
+
+// Get all keys and values
+print with "All keys:".
+let all_keys be keys with user_data.
+print with all_keys.
+
+print with "All values:".
+let all_values be values with user_data.
+print with all_values.
+
+// Update existing key
+print with "Updating age...".
+set user_data["age"] to 31.
+print with "New age:".
+print with user_data["age"].
+
+// Access non-existent key (should be None)
+print with "Accessing non-existent key 'phone':".
+let phone_value be user_data["phone"].
+print with phone_value.
+
+// Create another table for comparison
+let settings be Table.
+set settings["theme"] to "dark".
+set settings["notifications"] to "enabled".
+
+print with "Settings table size:".
+let settings_size be size with settings.
+print with settings_size.
+
+print with "=== Table Demo Complete ===".

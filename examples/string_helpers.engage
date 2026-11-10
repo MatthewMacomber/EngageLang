@@ -1,0 +1,120 @@
+// string_helpers.engage
+// A utility module for advanced string operations
+
+// Export string manipulation functions
+to export reverse_string with text:
+    let text_length be length with text.
+    let result be "".
+    let i be text_length minus 1.
+    
+    while i is greater than or equal to 0:
+        let char be substring with text, i, 1.
+        set result to result concatenated with char.
+        set i to i minus 1.
+    end
+    
+    return result.
+end
+
+to export count_words with text:
+    let trimmed be trim with text.
+    let text_length be length with trimmed.
+    
+    if text_length is equal to 0 then
+        return 0.
+    end
+    
+    let words be split with trimmed, " ".
+    return length with words.
+end
+
+to export capitalize_words with text:
+    let words be split with text, " ".
+    let word_count be length with words.
+    let result_words be Vector.
+    
+    let i be 0.
+    while i is less than word_count:
+        let word be words[i].
+        let word_length be length with word.
+        
+        if word_length is greater than 0 then
+            let first_char be substring with word, 0, 1.
+            let rest_chars be substring with word, 1, word_length minus 1.
+            let capitalized_first be to_upper with first_char.
+            let lowered_rest be to_lower with rest_chars.
+            let capitalized_word be capitalized_first concatenated with lowered_rest.
+            let len be push with result_words, capitalized_word.
+        otherwise
+            let len be push with result_words, word.
+        end
+        
+        set i to i plus 1.
+    end
+    
+    return join with result_words, " ".
+end
+
+to export is_palindrome with text:
+    let cleaned be to_lower with text.
+    let reversed be reverse_string with cleaned.
+    
+    if cleaned is equal to reversed then
+        return 1.
+    end
+    return 0.
+end
+
+// Export a record for text analysis
+to export define TextAnalyzer:
+    property text with "".
+    property analysis_results with Table.
+    
+    to set_text with new_text:
+        set self.text to new_text.
+        // Clear previous analysis
+        set self.analysis_results to Table.
+    end
+    
+    to analyze:
+        let text_length be length with self.text.
+        set self.analysis_results["length"] to text_length.
+        
+        let word_count be count_words with self.text.
+        set self.analysis_results["word_count"] to word_count.
+        
+        let is_palindrome_result be is_palindrome with self.text.
+        set self.analysis_results["is_palindrome"] to is_palindrome_result.
+        
+        let uppercase_version be to_upper with self.text.
+        set self.analysis_results["uppercase"] to uppercase_version.
+        
+        let capitalized_version be capitalize_words with self.text.
+        set self.analysis_results["title_case"] to capitalized_version.
+        
+        let reversed_version be reverse_string with self.text.
+        set self.analysis_results["reversed"] to reversed_version.
+    end
+    
+    to get_result with key:
+        return self.analysis_results[key].
+    end
+    
+    to print_full_analysis:
+        print with "=== Text Analysis Results ===".
+        print with "Original text: " concatenated with self.text.
+        print with "Length: " concatenated with to_string with self.analysis_results["length"].
+        print with "Word count: " concatenated with to_string with self.analysis_results["word_count"].
+        
+        let is_palindrome_val be self.analysis_results["is_palindrome"].
+        if is_palindrome_val is equal to 1 then
+            print with "Is palindrome: Yes".
+        otherwise
+            print with "Is palindrome: No".
+        end
+        
+        print with "Uppercase: " concatenated with self.analysis_results["uppercase"].
+        print with "Title case: " concatenated with self.analysis_results["title_case"].
+        print with "Reversed: " concatenated with self.analysis_results["reversed"].
+    end
+end

@@ -1,0 +1,239 @@
+// ui_components_module.engage
+// UI components module demonstrating advanced UI functionality with data integration
+
+// Export UI theme configuration
+export let ui_theme be Table.
+set ui_theme["primary_color"] to "blue".
+set ui_theme["secondary_color"] to "gray".
+set ui_theme["font_size"] to 12.
+set ui_theme["button_width"] to 120.
+set ui_theme["button_height"] to 30.
+
+// Export advanced UI component record
+to export define AdvancedPanel:
+    property base_panel with None.
+    property child_components with Vector.
+    property layout_data with Table.
+    property event_handlers with Table.
+    
+    to initialize with width, height, x, y:
+        set self.base_panel to create_panel.
+        ui_set_property with self.base_panel, "width", width.
+        ui_set_property with self.base_panel, "height", height.
+        ui_set_property with self.base_panel, "x", x.
+        ui_set_property with self.base_panel, "y", y.
+        
+        // Initialize layout data
+        set self.layout_data["width"] to width.
+        set self.layout_data["height"] to height.
+        set self.layout_data["x"] to x.
+        set self.layout_data["y"] to y.
+        set self.layout_data["next_y"] to 10.
+    end
+    
+    to add_label with text:
+        let label be create_label with text.
+        let current_y be self.layout_data["next_y"].
+        
+        ui_set_property with label, "x", 10.
+        ui_set_property with label, "y", current_y.
+        ui_set_property with label, "width", 200.
+        
+        ui_add_child with self.base_panel, label.
+        let len be push with self.child_components, label.
+        
+        // Update layout position
+        set self.layout_data["next_y"] to current_y plus 25.
+        
+        return label.
+    end
+    
+    to add_button with text:
+        let button be create_button with text.
+        let current_y be self.layout_data["next_y"].
+        let button_width be ui_theme["button_width"].
+        let button_height be ui_theme["button_height"].
+        
+        ui_set_property with button, "x", 10.
+        ui_set_property with button, "y", current_y.
+        ui_set_property with button, "width", button_width.
+        ui_set_property with button, "height", button_height.
+        
+        ui_add_child with self.base_panel, button.
+        let len be push with self.child_components, button.
+        
+        // Update layout position
+        set self.layout_data["next_y"] to current_y plus button_height plus 5.
+        
+        return button.
+    end
+    
+    to add_text_input with placeholder:
+        let input be create_text_input with placeholder.
+        let current_y be self.layout_data["next_y"].
+        
+        ui_set_property with input, "x", 10.
+        ui_set_property with input, "y", current_y.
+        ui_set_property with input, "width", 200.
+        ui_set_property with input, "height", 25.
+        
+        ui_add_child with self.base_panel, input.
+        let len be push with self.child_components, input.
+        
+        // Update layout position
+        set self.layout_data["next_y"] to current_y plus 30.
+        
+        return input.
+    end
+    
+    to get_component_count:
+        return length with self.child_components.
+    end
+    
+    to get_layout_info:
+        let info be Table.
+        set info["total_components"] to length with self.child_components.
+        set info["current_height"] to self.layout_data["next_y"].
+        set info["available_height"] to self.layout_data["height"] minus self.layout_data["next_y"].
+        return info.
+    end
+end
+
+// Export data-driven UI builder
+to export define DataDrivenUI:
+    property main_container with None.
+    property data_panels be Table.
+    property ui_state with Table.
+    
+    to initialize_container with width, height:
+        set self.main_container to new AdvancedPanel.
+        self.main_container.initialize with width, height, 50, 50.
+        
+        set self.ui_state["initialized"] to 1.
+        set self.ui_state["panel_count"] to 0.
+    end
+    
+    to create_data_panel with panel_id, title, data_vector:
+        let panel be new AdvancedPanel.
+        let panel_width be 300.
+        let panel_height be 200.
+        let panel_count be self.ui_state["panel_count"].
+        let panel_x be 100 plus panel_count times 320.
+        let panel_y be 100.
+        
+        panel.initialize with panel_width, panel_height, panel_x, panel_y.
+        
+        // Add title label
+        let title_label be panel.add_label with title.
+        
+        // Add data from vector
+        let data_count be length with data_vector.
+        let i be 0.
+        
+        while i is less than data_count:
+            let data_item be data_vector[i].
+            let item_text be "Item " concatenated with to_string with i.
+            let item_text2 be item_text concatenated with ": ".
+            let final_text be item_text2 concatenated with to_string with data_item.
+            
+            let item_label be panel.add_label with final_text.
+            set i to i plus 1.
+        end
+        
+        // Store panel reference
+        set self.data_panels[panel_id] to panel.
+        set self.ui_state["panel_count"] to panel_count plus 1.
+        
+        return panel.
+    end
+    
+    to create_control_panel with controls_data:
+        let control_panel be new AdvancedPanel.
+        control_panel.initialize with 250, 300, 50, 300.
+        
+        let title_label be control_panel.add_label with "Control Panel".
+        
+        // Create controls based on data
+        let control_keys be keys with controls_data.
+        let key_count be size with controls_data.
+        let i be 0.
+        
+        while i is less than key_count:
+            let key be control_keys[i].
+            let control_type be controls_data[key].
+            
+            if control_type is equal to "button":
+                let button be control_panel.add_button with key.
+            otherwise:
+                if control_type is equal to "input":
+                    let input be control_panel.add_text_input with key.
+                end
+            end
+            
+            set i to i plus 1.
+        end
+        
+        set self.data_panels["controls"] to control_panel.
+        return control_panel.
+    end
+    
+    to get_ui_summary:
+        let summary be Table.
+        set summary["total_panels"] to size with self.data_panels.
+        set summary["main_container_components"] to self.main_container.get_component_count.
+        
+        let total_components be 0.
+        let panel_keys be keys with self.data_panels.
+        let panel_count be size with self.data_panels.
+        let i be 0.
+        
+        while i is less than panel_count:
+            let key be panel_keys[i].
+            let panel be self.data_panels[key].
+            let panel_components be panel.get_component_count.
+            set total_components to total_components plus panel_components.
+            set i to i plus 1.
+        end
+        
+        set summary["total_components"] to total_components.
+        return summary.
+    end
+end
+
+// Export utility functions for UI management
+to export create_themed_button with text, theme_name:
+    let button be create_button with text.
+    
+    if theme_name is equal to "primary":
+        ui_set_property with button, "width", ui_theme["button_width"].
+        ui_set_property with button, "height", ui_theme["button_height"].
+    otherwise:
+        ui_set_property with button, "width", 100.
+        ui_set_property with button, "height", 25.
+    end
+    
+    return button.
+end
+
+to export calculate_layout_grid with container_width, container_height, item_count:
+    let grid_info be Table.
+    
+    // Calculate optimal grid dimensions
+    let sqrt_count be sqrt with item_count.
+    let cols be abs with sqrt_count.  // Use abs to ensure positive
+    let rows be item_count divided by cols.
+    
+    if item_count modulo cols is greater than 0:
+        set rows to rows plus 1.
+    end
+    
+    let item_width be container_width divided by cols.
+    let item_height be container_height divided by rows.
+    
+    set grid_info["columns"] to cols.
+    set grid_info["rows"] to rows.
+    set grid_info["item_width"] to item_width.
+    set grid_info["item_height"] to item_height.
+    
+    return grid_info.
+end

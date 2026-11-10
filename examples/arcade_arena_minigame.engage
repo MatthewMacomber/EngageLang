@@ -1,0 +1,80 @@
+// arcade_arena_minigame.engage
+// Complete 2D Arcade Space Arena simulation in Engage v3.
+// Exercises: Engine Game Objects (create, position, collision, destroy, find by tag),
+// Channels (event-driven messaging), UI Panels, and Vector manipulation.
+
+print with "=========================================".
+print with "     ENGAGE ARCADE ARENA: SPACE STRIKE   ".
+print with "=========================================".
+
+// 1. Initialize UI HUD Panel
+let hud_panel be create_panel with "HUD", 800, 60.
+ui_set_text with hud_panel, "SCORE: 0000 | SHIELDS: 100% | WAVE: 1".
+print with "HUD Initialized -> " concatenated with (ui_get_property with hud_panel, "text").
+
+// 2. Initialize Game Objects
+// Player ship
+let player be create_game_object with "PlayerShip", 400, 500, "player".
+// Enemy invaders with tag "enemy"
+let alien1 be create_game_object with "Alien_Alpha", 350, 100, "enemy".
+let alien2 be create_game_object with "Alien_Beta", 400, 100, "enemy".
+let alien3 be create_game_object with "Alien_Gamma", 450, 100, "enemy".
+
+// Projectile
+let missile be create_game_object with "PhotonTorpedo", 400, 480, "projectile".
+
+// 3. Event Channel for combat notifications
+create a channel named combat_events.
+
+print with "".
+print with "--- Initial State ---".
+let active_enemies be find_game_objects_with_tag with "enemy".
+print with "Enemy squadron detected! Total active invaders: " concatenated with active_enemies.length.
+
+// 4. Game Loop Simulation: Advance missile and check collisions
+let step be 1.
+let score be 0.
+let wave_active be 1.
+
+while step is less than or equal to 5 and wave_active is equal to 1:
+    print with "".
+    print with ">>> Frame " concatenated with step concatenated with " <<<".
+    // Move missile upwards toward Alien_Beta at (400, 100)
+    let new_missile_y be 480 minus (step times 95).
+    game_set_position with missile, 400, new_missile_y.
+    print with "Torpedo ascending -> Position: (400, " concatenated with new_missile_y concatenated with ")".
+
+    // Check collision with Alien_Beta
+    let hit be game_check_collision with missile, alien2.
+    if hit is equal to 1 then
+        print with "💥 DIRECT HIT! Photon Torpedo impacted " concatenated with alien2.name concatenated with "!".
+        destroy_game_object with alien2.
+        destroy_game_object with missile.
+        set score to score plus 500.
+        send "Alien_Beta vaporized! +500 pts" through combat_events.
+        set wave_active to 0.
+    otherwise
+        print with "Torpedo in flight... no collision yet.".
+    end
+
+    set step to step plus 1.
+end
+
+// 5. Drain event log channel
+print with "".
+print with "--- Combat Event Channel Broadcasts ---".
+let event_msg be receive from combat_events.
+if event_msg is not none then
+    print with "📢 Channel Received: " concatenated with event_msg.
+end
+
+// 6. Update HUD and Report Remaining Enemies
+let remaining_enemies be find_game_objects_with_tag with "enemy".
+let hud_summary be "SCORE: " concatenated with score concatenated with " | SHIELDS: 100% | REMAINING: " concatenated with remaining_enemies.length.
+ui_set_text with hud_panel, hud_summary.
+
+print with "".
+print with "--- Final Mission Status ---".
+print with "Updated HUD: " concatenated with (ui_get_property with hud_panel, "text").
+print with "Surviving Invaders: " concatenated with remaining_enemies.length.
+print with "Arcade Arena simulation completed successfully.".

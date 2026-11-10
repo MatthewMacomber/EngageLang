@@ -1,0 +1,49 @@
+// collections_demo.engage
+// Demonstrates the Collections standard library module with all its functions
+
+print with "=== Collections Demo ===".
+
+// Create a vector with numbers for testing
+let numbers be Vector.
+let result1 be push with numbers, 5.
+let result2 be push with numbers, 2.
+let result3 be push with numbers, 8.
+let result4 be push with numbers, 1.
+let result5 be push with numbers, 9.
+
+print with "Original vector length:".
+let original_length be length with numbers.
+print with original_length.
+
+// Test sort function
+print with "Sorting vector...".
+let sorted_numbers be sort with numbers.
+let sorted_length be length with sorted_numbers.
+print with "Sorted vector length:".
+print with sorted_length.
+
+// Show first few elements of sorted vector
+print with "First element of sorted vector:".
+print with sorted_numbers[0].
+print with "Second element of sorted vector:".
+print with sorted_numbers[1].
+
+// Create a table with string values for testing
+let words be Table.
+set words["a"] to "hello".
+set words["b"] to "world".
+set words["c"] to "engage".
+set words["d"] to "programming".
+
+print with "Original table size:".
+let original_size be size with words.
+print with original_size.
+
+// Test sort function on table
+print with "Sorting table...".
+let sorted_words be sort with words.
+let sorted_size be size with sorted_words.
+print with "Sorted table size:".
+print with sorted_size.
+
+print with "=== Collections Demo Complete ===".

@@ -1,0 +1,83 @@
+// vector_demo.engage
+// Demonstrates Vector (dynamic array) data structure operations.
+
+print with "=== Vector Demo ===".
+
+// Create a new vector
+let numbers be Vector.
+print with "Created empty vector".
+
+// Add some elements using push
+let length1 be push with numbers, 10.
+let length2 be push with numbers, 20.
+let length3 be push with numbers, 30.
+
+print with "Pushed three numbers. Vector length:".
+print with length3.
+
+// Access elements by index
+print with "First element (index 0):".
+print with numbers[0].
+print with "Second element (index 1):".
+print with numbers[1].
+print with "Third element (index 2):".
+print with numbers[2].
+
+// Insert an element in the middle
+let new_length be insert with numbers, 1, 15.
+print with "Inserted 15 at index 1. New length:".
+print with new_length.
+
+print with "Vector contents after insert:".
+print with numbers[0].
+print with numbers[1].
+print with numbers[2].
+print with numbers[3].
+
+// Remove an element
+let removed_value be remove with numbers, 2.
+print with "Removed element at index 2:".
+print with removed_value.
+
+print with "Vector contents after remove:".
+let final_length be length with numbers.
+print with "Final length:".
+print with final_length.
+
+let i be 0.
+while i is less than final_length:
+    print with numbers[i].
+    set i to i plus 1.
+end
+
+// Pop elements from the end
+print with "Popping elements:".
+let popped1 be pop with numbers.
+let popped2 be pop with numbers.
+let popped3 be pop with numbers.
+
+print with popped1.
+print with popped2.
+print with popped3.
+
+let empty_length be length with numbers.
+print with "Vector length after popping all:".
+print with empty_length.
+
+// Demonstrate sparse assignment
+let sparse_vector be Vector.
+set sparse_vector[5] to "Hello at index 5".
+set sparse_vector[10] to "World at index 10".
+
+print with "Sparse vector length:".
+let sparse_length be length with sparse_vector.
+print with sparse_length.
+
+print with "Element at index 5:".
+print with sparse_vector[5].
+print with "Element at index 10:".
+print with sparse_vector[10].
+print with "Element at index 0 (should be None):".
+print with sparse_vector[0].
+
+print with "=== Vector Demo Complete ===".

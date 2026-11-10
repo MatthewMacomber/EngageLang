@@ -1,0 +1,222 @@
+// module_system_demo.engage
+// Comprehensive demonstration of the module system with imports and exports
+// This program showcases importing functions and records from other modules
+
+print with "=== Module System Comprehensive Demo ===".
+
+// Import specific functions from math utilities
+from "math_utilities" import PI, E, calculate_circle_area, factorial, is_prime, MathCalculator.
+
+// Import specific functions from string helpers
+from "string_helpers" import reverse_string, count_words, capitalize_words, TextAnalyzer.
+
+print with "Successfully imported functions from utility modules!".
+print with "".
+
+// === Math Utilities Demo ===
+print with "1. Math Utilities Demo".
+print with "Using imported constants:".
+print with "PI = " concatenated with to_string with PI.
+print with "E = " concatenated with to_string with E.
+
+// Test circle calculations
+print with "".
+print with "Circle calculations:".
+let radius be 5.
+let area be calculate_circle_area with radius.
+print with "Area of circle with radius " concatenated with to_string with radius concatenated with " = " concatenated with to_string with area.
+
+// Test factorial function
+print with "".
+print with "Factorial calculations:".
+let fact_5 be factorial with 5.
+print with "5! = " concatenated with to_string with fact_5.
+
+let fact_0 be factorial with 0.
+print with "0! = " concatenated with to_string with fact_0.
+
+// Test prime checking
+print with "".
+print with "Prime number checking:".
+let numbers_to_check be Vector.
+let len1 be push with numbers_to_check, 2.
+let len2 be push with numbers_to_check, 17.
+let len3 be push with numbers_to_check, 25.
+let len4 be push with numbers_to_check, 29.
+
+let i be 0.
+let check_count be length with numbers_to_check.
+while i is less than check_count:
+    let num be numbers_to_check[i].
+    let is_prime_result be is_prime with num.
+    
+    if is_prime_result is equal to 1 then
+        print with to_string with num concatenated with " is prime".
+    otherwise
+        print with to_string with num concatenated with " is not prime".
+    end
+    
+    set i to i plus 1.
+end
+
+// Test MathCalculator record
+print with "".
+print with "Using MathCalculator record:".
+let calculator be new MathCalculator.
+set calculator.precision to 3.
+
+let compound_result be calculator.calculate_compound_interest with 1000, 5, 10.
+print with "Compound interest result: $" concatenated with to_string with compound_result.
+
+let history_summary be calculator.get_history_summary.
+print with history_summary.
+
+// === String Utilities Demo ===
+print with "".
+print with "2. String Utilities Demo".
+
+let test_string be "hello world programming".
+print with "Original string: " concatenated with test_string.
+
+let reversed be reverse_string with test_string.
+print with "Reversed: " concatenated with reversed.
+
+let word_count be count_words with test_string.
+print with "Word count: " concatenated with to_string with word_count.
+
+let capitalized be capitalize_words with test_string.
+print with "Capitalized: " concatenated with capitalized.
+
+// Test palindrome checking
+print with "".
+print with "Palindrome testing:".
+let palindrome_tests be Vector.
+let len5 be push with palindrome_tests, "racecar".
+let len6 be push with palindrome_tests, "hello".
+let len7 be push with palindrome_tests, "madam".
+
+let j be 0.
+let palindrome_count be length with palindrome_tests.
+while j is less than palindrome_count:
+    let test_word be palindrome_tests[j].
+    let is_palindrome_result be is_palindrome with test_word.
+    
+    if is_palindrome_result is equal to 1 then
+        print with "'" concatenated with test_word concatenated with "' is a palindrome".
+    otherwise
+        print with "'" concatenated with test_word concatenated with "' is not a palindrome".
+    end
+    
+    set j to j plus 1.
+end
+
+// Test TextAnalyzer record
+print with "".
+print with "Using TextAnalyzer record:".
+let analyzer be new TextAnalyzer.
+analyzer.set_text with "The Quick Brown Fox Jumps Over The Lazy Dog".
+analyzer.analyze.
+analyzer.print_full_analysis.
+
+// === Integration Demo ===
+print with "".
+print with "3. Integration Demo - Combining Both Modules".
+
+// Create a program that uses both math and string utilities
+to define DataProcessor:
+    property processed_items with Vector.
+    property statistics with Table.
+    
+    to process_text_with_math with text:
+        // Use string analysis
+        let text_analyzer be new TextAnalyzer.
+        text_analyzer.set_text with text.
+        text_analyzer.analyze.
+        
+        let word_count be text_analyzer.get_result with "word_count".
+        let text_length be text_analyzer.get_result with "length".
+        
+        // Use math calculations
+        let math_calc be new MathCalculator.
+        set math_calc.precision to 2.
+        
+        // Calculate some statistics
+        let avg_word_length be text_length divided by word_count.
+        let rounded_avg be math_calc.round_to_precision with avg_word_length.
+        
+        // Store results
+        let result be Table.
+        set result["original_text"] to text.
+        set result["word_count"] to word_count.
+        set result["character_count"] to text_length.
+        set result["avg_word_length"] to rounded_avg.
+        set result["title_case"] to text_analyzer.get_result with "title_case".
+        
+        let len be push with self.processed_items, result.
+        return result.
+    end
+    
+    to print_processing_summary:
+        let item_count be length with self.processed_items.
+        print with "=== Data Processing Summary ===".
+        print with "Processed " concatenated with to_string with item_count concatenated with " text items:".
+        
+        let k be 0.
+        while k is less than item_count:
+            let item be self.processed_items[k].
+            let item_num be k plus 1.
+            
+            print with "".
+            print with "Item " concatenated with to_string with item_num concatenated with ":".
+            print with "  Text: " concatenated with item["original_text"].
+            print with "  Words: " concatenated with to_string with item["word_count"].
+            print with "  Characters: " concatenated with to_string with item["character_count"].
+            print with "  Avg word length: " concatenated with to_string with item["avg_word_length"].
+            print with "  Title case: " concatenated with item["title_case"].
+            
+            set k to k plus 1.
+        end
+    end
+end
+
+let processor be new DataProcessor.
+
+// Process several text samples
+let sample1 be processor.process_text_with_math with "engage programming language".
+let sample2 be processor.process_text_with_math with "modular system design".
+let sample3 be processor.process_text_with_math with "comprehensive feature demonstration".
+
+processor.print_processing_summary.
+
+// === Final Statistics ===
+print with "".
+print with "4. Module System Statistics".
+
+// Count imported functions used
+let functions_used be Vector.
+let len8 be push with functions_used, "calculate_circle_area".
+let len9 be push with functions_used, "factorial".
+let len10 be push with functions_used, "is_prime".
+let len11 be push with functions_used, "reverse_string".
+let len12 be push with functions_used, "count_words".
+let len13 be push with functions_used, "capitalize_words".
+
+let records_used be Vector.
+let len14 be push with records_used, "MathCalculator".
+let len15 be push with records_used, "TextAnalyzer".
+
+let function_count be length with functions_used.
+let record_count be length with records_used.
+
+print with "Functions imported and used: " concatenated with to_string with function_count.
+print with "Records imported and used: " concatenated with to_string with record_count.
+print with "Constants imported: 2 (PI, E)".
+
+print with "".
+print with "🎉 Module System Demo Complete!".
+print with "Successfully demonstrated:".
+print with "  ✓ Importing functions from external modules".
+print with "  ✓ Importing records/classes from external modules".
+print with "  ✓ Using imported constants".
+print with "  ✓ Combining functionality from multiple modules".
+print with "  ✓ Creating complex applications with modular design".

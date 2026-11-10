@@ -1,0 +1,34 @@
+print with "=== Engage External Libraries Demo (Zig & C) ===".
+
+// 1. External Zig library
+from "external_math.zig" import fast_lerp, zig_fib, zig_is_prime.
+
+let midpoint be fast_lerp with 10, 50, 0.5.
+print with "Zig lerp(10, 50, 0.5) = " concatenated with (to_string with midpoint).
+
+let fib10 be zig_fib with 10.
+print with "Zig fib(10) = " concatenated with (to_string with fib10).
+
+let is_p17 be zig_is_prime with 17.
+print with "Zig is_prime(17) = " concatenated with (to_string with is_p17).
+
+let is_p20 be zig_is_prime with 20.
+print with "Zig is_prime(20) = " concatenated with (to_string with is_p20).
+
+// 2. External C library
+from "external_c_lib.c" import
+    c_hypot with a: Number, b: Number returns Number,
+    c_factorial with n: Int returns Int,
+    c_sum_range with s: Int, e: Int returns Int.
+
+let hyp be c_hypot with 3, 4.
+print with "C hypot(3, 4) = " concatenated with (to_string with hyp).
+
+let fact6 be c_factorial with 6.
+print with "C factorial(6) = " concatenated with (to_string with fact6).
+
+let sum100 be c_sum_range with 1, 100.
+print with "C sum_range(1, 100) = " concatenated with (to_string with sum100).
+
+print with "=== All External Library Calls Completed Successfully! ===".
+

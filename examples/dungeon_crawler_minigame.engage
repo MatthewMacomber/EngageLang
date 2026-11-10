@@ -1,0 +1,170 @@
+// dungeon_crawler_minigame.engage
+// A complete text-based Roguelike dungeon crawler minigame for Engage v3.
+// Exercises: Records, Methods, Fibers, Switch Statements, Results, and Vectors.
+
+to define Monster:
+    property name with "Goblin".
+    property hp with 25.
+    property attack with 6.
+    property xp_reward with 15.
+
+    to take_damage with amount:
+        set self.hp to max with 0, (self.hp minus amount).
+        return self.hp.
+    end
+
+    to is_alive:
+        return self.hp is greater than 0.
+    end
+end
+
+to define Player:
+    property name with "Hero".
+    property hp with 50.
+    property max_hp with 50.
+    property attack with 10.
+    property gold with 0.
+    property potions with 2.
+
+    to heal with amount:
+        set self.hp to min with self.max_hp, (self.hp plus amount).
+        return self.hp.
+    end
+
+    to take_damage with amount:
+        set self.hp to max with 0, (self.hp minus amount).
+        return self.hp.
+    end
+
+    to use_potion:
+        if self.potions is less than or equal to 0 then
+            return error with "Out of healing potions!".
+        end
+        set self.potions to self.potions minus 1.
+        self.heal with 20.
+        return ok with self.hp.
+    end
+end
+
+// Fiber: Guard patrol state machine yielding patrol waypoints
+define a fiber named guard_patrol:
+    yield "Room A (Armory)".
+    yield "Room B (Great Hall)".
+    yield "Room C (Throne Room)".
+    yield "Room D (Dungeon Cellar)".
+    return "Guard returns to barracks.".
+end
+
+to open_chest with has_key, is_trapped:
+    if is_trapped is equal to 1 then
+        return error with "Chest was rigged with poison darts!".
+    end
+    if has_key is equal to 0 then
+        return error with "Chest is locked securely. A skeleton key is required.".
+    end
+    return ok with 100.
+end
+
+to simulate_combat with hero, enemy:
+    print with "⚔️ Battle initiated: " concatenated with hero.name concatenated with " vs " concatenated with enemy.name.
+    let turn be 1.
+    while hero.hp is greater than 0 and (enemy.is_alive) is equal to 1:
+        print with "--- Round " concatenated with turn concatenated with " ---".
+        // Player turn
+        let damage_dealt be hero.attack.
+        enemy.take_damage with damage_dealt.
+        print with hero.name concatenated with " strikes " concatenated with enemy.name concatenated with " for " concatenated with damage_dealt concatenated with " damage! (Enemy HP: " concatenated with enemy.hp concatenated with ")".
+        
+        if (enemy.is_alive) is equal to 1 then
+            // Enemy counter-attacks
+            let damage_taken be enemy.attack.
+            hero.take_damage with damage_taken.
+            print with enemy.name concatenated with " retaliates for " concatenated with damage_taken concatenated with " damage! (Hero HP: " concatenated with hero.hp concatenated with ")".
+            
+            // Tactical decision: Drink potion if HP is low
+            if hero.hp is less than 20 and hero.potions is greater than 0 then
+                let potion_res be hero.use_potion.
+                if potion_res is an ok then
+                    print with "🧪 " concatenated with hero.name concatenated with " drinks a potion! Restored HP to: " concatenated with hero.hp.
+                end
+            end
+        end
+        let turn be turn plus 1.
+    end
+
+    if hero.hp is greater than 0 then
+        print with "🎉 Victory! Defeated " concatenated with enemy.name concatenated with "! Gained " concatenated with enemy.xp_reward concatenated with " XP.".
+        return 1.
+    otherwise
+        print with "💀 Hero has fallen in battle...".
+        return 0.
+    end
+end
+
+to main_dungeon_run:
+    print with "========================================".
+    print with "     ENGAGE DUNGEON CRAWLER v3.0        ".
+    print with "========================================".
+
+    let hero be new Player with name: "Sir Galahad", hp: 45, max_hp: 45, attack: 12, potions: 2.
+    print with "Welcome, " concatenated with hero.name concatenated with "! (HP: " concatenated with hero.hp concatenated with ", Attack: " concatenated with hero.attack concatenated with ")".
+
+    // Step 1: Patrol inspection via Fiber
+    print with "".
+    print with "--- Step 1: Scout Area Patrol ---".
+    let p1 be call guard_patrol.
+    print with "Patrol scout reporting at: " concatenated with p1.
+    let p2 be call guard_patrol.
+    print with "Patrol scout moved to: " concatenated with p2.
+
+    // Step 2: Chest Interaction with Result Error Handling
+    print with "".
+    print with "--- Step 2: Treasure Chambers ---".
+    print with "Attempting to open locked ancient chest without a key:".
+    let attempt1 be open_chest with 0, 0.
+    if attempt1 is an error then
+        print with "❌ Chest check failed: " concatenated with (the error message of attempt1).
+    end
+
+    print with "Opening chest with a key:".
+    let attempt2 be open_chest with 1, 0.
+    if attempt2 is an ok then
+        let gold_found be the ok value of attempt2.
+        set hero.gold to hero.gold plus gold_found.
+        print with "💰 Chest unlocked! Looted " concatenated with gold_found concatenated with " gold coins! (Total Gold: " concatenated with hero.gold concatenated with ")".
+    end
+
+    // Step 3: Combat encounters
+    print with "".
+    print with "--- Step 3: Combat Encounters ---".
+    let orc be new Monster with name: "Orc Brute", hp: 30, attack: 8, xp_reward: 25.
+    let outcome be simulate_combat with hero, orc.
+
+    // Step 4: Switch Statement on Dungeon Outcome
+    print with "".
+    print with "--- Step 4: Run Evaluation ---".
+    let rank_code be 0.
+    if hero.hp is greater than 30 then
+        let rank_code be 1.
+    otherwise if hero.hp is greater than 0 then
+        let rank_code be 2.
+    otherwise
+        let rank_code be 3.
+    end
+
+    switch on rank_code:
+        case 1:
+            print with "🏆 Rating: S-RANK - Flawless Dungeon Delver!".
+        case 2:
+            print with "🎖️ Rating: A-RANK - Victorious Survivor!".
+        case 3:
+            print with "🪦 Rating: F-RANK - Fallen in the Depths.".
+        otherwise:
+            print with "Rating: Unknown.".
+    end
+
+    print with "Final Hero Status -> HP: " concatenated with hero.hp concatenated with ", Gold: " concatenated with hero.gold concatenated with ", Potions: " concatenated with hero.potions.
+    print with "Dungeon exploration completed successfully.".
+end
+
+main_dungeon_run with.

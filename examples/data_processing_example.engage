@@ -1,0 +1,54 @@
+// data_processing_example.engage
+// Demonstrates complex data structures, standard library, and records working together
+
+to define DataProcessor:
+    property raw_data with Table.
+    property processed_results with Vector.
+    property statistics with Table.
+    
+    to add_data with key, value:
+        set self.raw_data[key] to value.
+    end
+    
+    to process_all_data:
+        let keys_list be keys with self.raw_data.
+        let values_list be values with self.raw_data.
+        
+        // Process each value using string and math functions
+        let i be 0.
+        let data_count be size with self.raw_data.
+        
+        while i is less than data_count:
+            let current_value be values_list[i].
+            let processed be to_upper with current_value.
+            let len be push with self.processed_results, processed.
+            set i to i plus 1.
+        end
+        
+        // Calculate statistics
+        let result_count be length with self.processed_results.
+        set self.statistics["total_processed"] to result_count.
+        set self.statistics["processing_complete"] to "yes".
+    end
+    
+    to get_summary:
+        let total be self.statistics["total_processed"].
+        let status be self.statistics["processing_complete"].
+        let summary be "Processed " concatenated with to_string with total.
+        return summary concatenated with " items successfully".
+    end
+end
+
+// Main application
+print with "Starting data processing application...".
+
+let processor be new DataProcessor.
+processor.add_data with "item1", "hello".
+processor.add_data with "item2", "world".
+processor.add_data with "item3", "engage".
+
+processor.process_all_data.
+let summary be processor.get_summary.
+
+print with summary.
+print with "Data processing complete!".

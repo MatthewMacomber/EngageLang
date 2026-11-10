@@ -1,0 +1,1666 @@
+// ============================================================================
+// Engage Self-Hosting Compiler (engage_compiler.engage)
+// Compiles Engage source code (.engage) to Zig (.zig)
+// ============================================================================
+
+// --- Character & String Helpers ---
+
+to is_digit_code with c:
+    if c is greater than or equal to 48 and c is less than or equal to 57 then
+        return 1.
+    end
+    return 0.
+end
+
+to is_alpha_code with c:
+    if c is greater than or equal to 65 and c is less than or equal to 90 then
+        return 1.
+    end
+    if c is greater than or equal to 97 and c is less than or equal to 122 then
+        return 1.
+    end
+    if c is equal to 95 then
+        return 1.
+    end
+    return 0.
+end
+
+to is_alnum_code with c:
+    if (is_alpha_code with c) is equal to 1 then
+        return 1.
+    end
+    if (is_digit_code with c) is equal to 1 then
+        return 1.
+    end
+    return 0.
+end
+
+to is_space_code with c:
+    if c is equal to 32 or c is equal to 9 or c is equal to 13 then
+        return 1.
+    end
+    return 0.
+end
+
+to make_token with t_type, t_val, t_line:
+    let tok be Table.
+    set tok["type"] to t_type.
+    set tok["value"] to t_val.
+    set tok["line"] to t_line.
+    return tok.
+end
+
+to is_keyword_word with w:
+    if w is equal to "let" or w is equal to "be" or w is equal to "set" or w is equal to "to" then return 1. end
+    if w is equal to "if" or w is equal to "then" or w is equal to "otherwise" or w is equal to "end" then return 1. end
+    if w is equal to "while" or w is equal to "return" or w is equal to "with" or w is equal to "define" then return 1. end
+    if w is equal to "new" or w is equal to "property" or w is equal to "self" or w is equal to "Record" then return 1. end
+    if w is equal to "Vector" or w is equal to "Table" or w is equal to "Ok" or w is equal to "Error" then return 1. end
+    if w is equal to "import" or w is equal to "from" or w is equal to "export" or w is equal to "as" then return 1. end
+    return 0.
+end
+
+to is_word_operator with w:
+    if w is equal to "plus" or w is equal to "minus" or w is equal to "times" or w is equal to "modulo" then return 1. end
+    if w is equal to "is" or w is equal to "and" or w is equal to "or" or w is equal to "not" or w is equal to "call" then return 1. end
+    return 0.
+end
+
+to match_phrase_at with src, pos, src_len, phrase:
+    let plen be length with phrase.
+    let end_pos be pos plus plen.
+    if end_pos is greater than src_len then
+        return 0.
+    end
+    let sub be substring with src, pos, plen.
+    if sub is not equal to phrase then
+        return 0.
+    end
+    if end_pos is less than src_len then
+        let next_ch be char_at with src, end_pos.
+        let next_code be char_code with next_ch.
+        if (is_alnum_code with next_code) is equal to 1 then
+            return 0.
+        end
+    end
+    return 1.
+end
+
+to build_multi_ops:
+    let ops be Vector.
+    push with ops, "is greater than or equal to".
+    push with ops, "is less than or equal to".
+    push with ops, "the error message of".
+    push with ops, "concatenated with".
+    push with ops, "is not equal to".
+    push with ops, "the ok value of".
+    push with ops, "or return error".
+    push with ops, "is greater than".
+    push with ops, "is less than".
+    push with ops, "is equal to".
+    push with ops, "divided by".
+    push with ops, "is not".
+    push with ops, "is an".
+    return ops.
+end
+
+// --- Lexer ---
+
+to tokenize_source with src:
+    let tokens be Vector.
+    let multi_ops be call build_multi_ops.
+    let num_multi be length with multi_ops.
+    let src_len be length with src.
+    let pos be 0.
+    let line be 1.
+    let Q be from_char_code with 34.
+    let SQ be from_char_code with 39.
+    let BS be from_char_code with 92.
+    let NL be from_char_code with 10.
+    let TAB be from_char_code with 9.
+    let CR be from_char_code with 13.
+
+    while pos is less than src_len:
+        let ch be char_at with src, pos.
+        let code be char_code with ch.
+
+        if (is_space_code with code) is equal to 1 then
+            set pos to pos plus 1.
+        otherwise if code is equal to 10 then
+            let tok be make_token with "EOL", "\n", line.
+            push with tokens, tok.
+            set line to line plus 1.
+            set pos to pos plus 1.
+        otherwise if ch is equal to "/" and (pos plus 1) is less than src_len and (char_at with src, (pos plus 1)) is equal to "/" then
+            set pos to pos plus 2.
+            while pos is less than src_len and (char_code with (char_at with src, pos)) is not equal to 10:
+                set pos to pos plus 1.
+            end
+        otherwise if ch is equal to "/" and (pos plus 1) is less than src_len and (char_at with src, (pos plus 1)) is equal to "*" then
+            set pos to pos plus 2.
+            let closed be 0.
+            while pos is less than src_len and closed is equal to 0:
+                let c0 be char_at with src, pos.
+                if (char_code with c0) is equal to 10 then
+                    set line to line plus 1.
+                end
+                if c0 is equal to "*" and (pos plus 1) is less than src_len and (char_at with src, (pos plus 1)) is equal to "/" then
+                    set pos to pos plus 2.
+                    set closed to 1.
+                otherwise
+                    set pos to pos plus 1.
+                end
+            end
+        otherwise
+            // Check multi-word operators first
+            let matched_op be "".
+            let op_idx be 0.
+            while op_idx is less than num_multi and matched_op is equal to "":
+                let candidate be multi_ops[op_idx].
+                if (match_phrase_at with src, pos, src_len, candidate) is equal to 1 then
+                    set matched_op to candidate.
+                end
+                set op_idx to op_idx plus 1.
+            end
+
+            if matched_op is not equal to "" then
+                let tok be make_token with "OPERATOR", matched_op, line.
+                push with tokens, tok.
+                set pos to pos plus (length with matched_op).
+            otherwise if (is_digit_code with code) is equal to 1 then
+                let start_pos be pos.
+                while pos is less than src_len and (is_digit_code with (char_code with (char_at with src, pos))) is equal to 1:
+                    set pos to pos plus 1.
+                end
+                if pos is less than src_len and (char_at with src, pos) is equal to "." then
+                    if (pos plus 1) is less than src_len and (is_digit_code with (char_code with (char_at with src, (pos plus 1)))) is equal to 1 then
+                        set pos to pos plus 1.
+                        while pos is less than src_len and (is_digit_code with (char_code with (char_at with src, pos))) is equal to 1:
+                            set pos to pos plus 1.
+                        end
+                    end
+                end
+                let num_str be substring with src, start_pos, (pos minus start_pos).
+                let tok be make_token with "NUMBER", num_str, line.
+                push with tokens, tok.
+            otherwise if ch is equal to Q or ch is equal to SQ then
+                let quote_ch be ch.
+                set pos to pos plus 1.
+                let str_val be "".
+                let done_str be 0.
+                while pos is less than src_len and done_str is equal to 0:
+                    let sc be char_at with src, pos.
+                    let sc_code be char_code with sc.
+                    if sc is equal to quote_ch then
+                        set pos to pos plus 1.
+                        set done_str to 1.
+                    otherwise if sc is equal to BS then
+                        set pos to pos plus 1.
+                        if pos is less than src_len then
+                            let esc be char_at with src, pos.
+                            if esc is equal to "n" then
+                                set str_val to concat with str_val, NL.
+                            otherwise if esc is equal to "t" then
+                                set str_val to concat with str_val, TAB.
+                            otherwise if esc is equal to "r" then
+                                set str_val to concat with str_val, CR.
+                            otherwise if esc is equal to Q then
+                                set str_val to concat with str_val, Q.
+                            otherwise if esc is equal to SQ then
+                                set str_val to concat with str_val, SQ.
+                            otherwise if esc is equal to BS then
+                                set str_val to concat with str_val, BS.
+                            otherwise
+                                set str_val to concat with str_val, (concat with BS, esc).
+                            end
+                            set pos to pos plus 1.
+                        end
+                    otherwise
+                        if sc_code is equal to 10 then
+                            set line to line plus 1.
+                        end
+                        set str_val to concat with str_val, sc.
+                        set pos to pos plus 1.
+                    end
+                end
+                let tok be make_token with "STRING", str_val, line.
+                push with tokens, tok.
+            otherwise if (is_alpha_code with code) is equal to 1 then
+                let start_pos be pos.
+                while pos is less than src_len and (is_alnum_code with (char_code with (char_at with src, pos))) is equal to 1:
+                    set pos to pos plus 1.
+                end
+                let word be substring with src, start_pos, (pos minus start_pos).
+                let t_type be "IDENTIFIER".
+                if (is_word_operator with word) is equal to 1 then
+                    set t_type to "OPERATOR".
+                otherwise if (is_keyword_word with word) is equal to 1 then
+                    set t_type to "KEYWORD".
+                end
+                let tok be make_token with t_type, word, line.
+                push with tokens, tok.
+            otherwise
+                // Symbolic operators and punctuation
+                let two_char be "".
+                if (pos plus 1) is less than src_len then
+                    set two_char to substring with src, pos, 2.
+                end
+                if two_char is equal to "==" or two_char is equal to "!=" or two_char is equal to "<=" or two_char is equal to ">=" then
+                    let tok be make_token with "OPERATOR", two_char, line.
+                    push with tokens, tok.
+                    set pos to pos plus 2.
+                otherwise if ch is equal to "+" or ch is equal to "-" or ch is equal to "*" or ch is equal to "/" or ch is equal to "%" or ch is equal to "<" or ch is equal to ">" then
+                    let tok be make_token with "OPERATOR", ch, line.
+                    push with tokens, tok.
+                    set pos to pos plus 1.
+                otherwise
+                    let tok be make_token with "PUNCTUATION", ch, line.
+                    push with tokens, tok.
+                    set pos to pos plus 1.
+                end
+            end
+        end
+    end
+
+    let eof_tok be make_token with "EOF", "", line.
+    push with tokens, eof_tok.
+    return tokens.
+end
+
+// --- Parser ---
+
+to make_parser with tokens:
+    let p be Table.
+    set p["tokens"] to tokens.
+    set p["pos"] to 0.
+    set p["len"] to length with tokens.
+    return p.
+end
+
+to cur_tok with p:
+    let pos be p["pos"].
+    let len be p["len"].
+    let toks be p["tokens"].
+    if pos is less than len then
+        return toks[pos].
+    end
+    return toks[len minus 1].
+end
+
+to peek_tok with p, offset:
+    let idx be p["pos"] plus offset.
+    let len be p["len"].
+    let toks be p["tokens"].
+    if idx is less than len then
+        return toks[idx].
+    end
+    return toks[len minus 1].
+end
+
+to advance_tok with p:
+    let pos be p["pos"].
+    set p["pos"] to pos plus 1.
+    return cur_tok with p.
+end
+
+to skip_eols with p:
+    let tok be cur_tok with p.
+    while tok["type"] is equal to "EOL":
+        set tok to advance_tok with p.
+    end
+    return 0.
+end
+
+to consume_period with p:
+    skip_eols with p.
+    let tok be cur_tok with p.
+    if tok["type"] is equal to "PUNCTUATION" and tok["value"] is equal to "." then
+        advance_tok with p.
+    end
+    return 0.
+end
+
+to is_name_tok with tok:
+    let t be tok["type"].
+    let v be tok["value"].
+    if t is equal to "IDENTIFIER" then return 1. end
+    if t is equal to "KEYWORD" then
+        if v is equal to "if" or v is equal to "then" or v is equal to "otherwise" or v is equal to "end" then return 0. end
+        if v is equal to "let" or v is equal to "be" or v is equal to "to" or v is equal to "with" or v is equal to "return" then return 0. end
+        if v is equal to "while" or v is equal to "define" or v is equal to "new" or v is equal to "set" then return 0. end
+        return 1.
+    end
+    return 0.
+end
+
+to is_valid_expr_tok with tok:
+    let t be tok["type"].
+    let v be tok["value"].
+    if t is equal to "EOL" or t is equal to "EOF" then return 0. end
+    if t is equal to "KEYWORD" then
+        if v is equal to "then" or v is equal to "otherwise" or v is equal to "end" then return 0. end
+        if v is equal to "let" or v is equal to "set" or v is equal to "if" or v is equal to "while" or v is equal to "return" or v is equal to "to" then return 0. end
+    end
+    return 1.
+end
+
+to token_prec with p, tok:
+    let t be tok["type"].
+    let v be tok["value"].
+    if t is equal to "EOL" then return -1. end
+    if t is equal to "KEYWORD" and v is equal to "with" then return 8. end
+    if t is equal to "PUNCTUATION" and v is equal to "." then
+        let nxt be peek_tok with p, 1.
+        if (is_name_tok with nxt) is equal to 1 then
+            return 9.
+        end
+        return 0.
+    end
+    if t is equal to "PUNCTUATION" and v is equal to "[" then return 10. end
+    if t is not equal to "OPERATOR" then return 0. end
+    if v is equal to "or" or v is equal to "or return error" then return 1. end
+    if v is equal to "and" then return 2. end
+    if v is equal to "is" or v is equal to "is equal to" or v is equal to "==" or v is equal to "is not" or v is equal to "is not equal to" or v is equal to "!=" then return 3. end
+    if v is equal to "is greater than" or v is equal to ">" or v is equal to "is less than" or v is equal to "<" then return 3. end
+    if v is equal to "is greater than or equal to" or v is equal to ">=" or v is equal to "is less than or equal to" or v is equal to "<=" or v is equal to "is an" then return 3. end
+    if v is equal to "concatenated with" then return 4. end
+    if v is equal to "plus" or v is equal to "+" or v is equal to "minus" or v is equal to "-" then return 5. end
+    if v is equal to "times" or v is equal to "*" or v is equal to "divided by" or v is equal to "/" or v is equal to "modulo" or v is equal to "%" then return 6. end
+    return 0.
+end
+
+to parse_atom with p:
+    let tok be cur_tok with p.
+    let t be tok["type"].
+    let v be tok["value"].
+
+    if t is equal to "NUMBER" then
+        advance_tok with p.
+        let node be Table.
+        set node["kind"] to "Number".
+        set node["value"] to v.
+        return node.
+    end
+
+    if t is equal to "STRING" then
+        advance_tok with p.
+        let node be Table.
+        set node["kind"] to "String".
+        set node["value"] to v.
+        return node.
+    end
+
+    if t is equal to "KEYWORD" and v is equal to "Vector" then
+        advance_tok with p.
+        let node be Table.
+        set node["kind"] to "Vector".
+        return node.
+    end
+
+    if t is equal to "KEYWORD" and v is equal to "Table" then
+        advance_tok with p.
+        let node be Table.
+        set node["kind"] to "Table".
+        return node.
+    end
+
+    if t is equal to "KEYWORD" and v is equal to "self" then
+        advance_tok with p.
+        let node be Table.
+        set node["kind"] to "Self".
+        return node.
+    end
+
+    if t is equal to "KEYWORD" and (v is equal to "Ok" or v is equal to "Error") then
+        advance_tok with p.
+        let node be Table.
+        set node["kind"] to "Result".
+        set node["res_type"] to v.
+        let cur be cur_tok with p.
+        if cur["value"] is equal to "with" then
+            advance_tok with p.
+            set node["value"] to parse_expr with p, 0, 0.
+        otherwise
+            set node["value"] to None.
+        end
+        return node.
+    end
+
+    if t is equal to "KEYWORD" and v is equal to "new" then
+        advance_tok with p.
+        let name_tok be cur_tok with p.
+        advance_tok with p.
+        let props be Table.
+        let prop_order be Vector.
+        let cur be cur_tok with p.
+        if cur["value"] is equal to "with" then
+            advance_tok with p.
+            let parsing_props be 1.
+            while parsing_props is equal to 1:
+                let ctok be cur_tok with p.
+                if ctok["type"] is equal to "EOF" or ctok["value"] is equal to "." then
+                    set parsing_props to 0.
+                otherwise
+                    let pname be ctok["value"].
+                    advance_tok with p.
+                    let after_name be cur_tok with p.
+                    if after_name["type"] is equal to "PUNCTUATION" and after_name["value"] is equal to ":" then
+                        advance_tok with p.
+                    end
+                    let pval be parse_expr with p, 0, 1.
+                    set props[pname] to pval.
+                    push with prop_order, pname.
+                    let comma_tok be cur_tok with p.
+                    if comma_tok["value"] is equal to "," then
+                        advance_tok with p.
+                    otherwise
+                        set parsing_props to 0.
+                    end
+                end
+            end
+        end
+        let node be Table.
+        set node["kind"] to "NewInstance".
+        set node["name"] to name_tok["value"].
+        set node["props"] to props.
+        set node["prop_order"] to prop_order.
+        return node.
+    end
+
+    if t is equal to "PUNCTUATION" and v is equal to "(" then
+        advance_tok with p.
+        let expr be parse_expr with p, 0, 0.
+        let close_tok be cur_tok with p.
+        if close_tok["type"] is equal to "PUNCTUATION" and close_tok["value"] is equal to ")" then
+            advance_tok with p.
+        end
+        return expr.
+    end
+
+    if t is equal to "OPERATOR" and (v is equal to "not" or v is equal to "-" or v is equal to "minus" or v is equal to "call" or v is equal to "the ok value of" or v is equal to "the error message of") then
+        advance_tok with p.
+        let operand be parse_expr with p, 7, 0.
+        let node be Table.
+        set node["kind"] to "UnaryOp".
+        set node["op"] to v.
+        set node["operand"] to operand.
+        return node.
+    end
+
+    advance_tok with p.
+    let node be Table.
+    set node["kind"] to "VarAccess".
+    set node["name"] to v.
+    return node.
+end
+
+to parse_func_call with p, callee, caller_min_prec:
+    advance_tok with p.
+    let args be Vector.
+    let cur be cur_tok with p.
+    let is_punct_stop be 0.
+    if cur["type"] is equal to "PUNCTUATION" and (cur["value"] is equal to "." or cur["value"] is equal to ":") then
+        set is_punct_stop to 1.
+    end
+    if (is_valid_expr_tok with cur) is equal to 1 and is_punct_stop is equal to 0 then
+        let more_args be 1.
+        let arg_prec be 2.
+        if caller_min_prec is greater than 2 then
+            set arg_prec to caller_min_prec.
+        end
+        while more_args is equal to 1:
+            let arg_expr be parse_expr with p, arg_prec, 1.
+            push with args, arg_expr.
+            let next_t be cur_tok with p.
+            if next_t["type"] is equal to "EOL" then
+                set more_args to 0.
+            otherwise if next_t["type"] is equal to "PUNCTUATION" and next_t["value"] is equal to "," then
+                advance_tok with p.
+                let after_comma be cur_tok with p.
+                if (is_valid_expr_tok with after_comma) is equal to 0 then
+                    set more_args to 0.
+                end
+            otherwise
+                set more_args to 0.
+            end
+        end
+    end
+    let node be Table.
+    set node["kind"] to "FuncCall".
+    set node["callee"] to callee.
+    set node["args"] to args.
+    return node.
+end
+
+to parse_expr with p, min_prec, in_args:
+    let left be parse_atom with p.
+    let loop_active be 1.
+
+    while loop_active is equal to 1:
+        let cur be cur_tok with p.
+        if cur["type"] is equal to "EOL" then
+            let saved_pos be p["pos"].
+            skip_eols with p.
+            let after_eol be cur_tok with p.
+            let next_prec be token_prec with p, after_eol.
+            if after_eol["type"] is not equal to "EOF" and (is_valid_expr_tok with after_eol) is equal to 1 and min_prec is less than next_prec then
+                set cur to after_eol.
+            otherwise
+                set p["pos"] to saved_pos.
+                set loop_active to 0.
+            end
+        end
+
+        if loop_active is equal to 1 then
+            set cur to cur_tok with p.
+            let ctype be cur["type"].
+            let cval be cur["value"].
+            let prec be token_prec with p, cur.
+            if ctype is equal to "EOF" or (is_valid_expr_tok with cur) is equal to 0 or min_prec is greater than or equal to prec then
+                set loop_active to 0.
+            otherwise if ctype is equal to "PUNCTUATION" and (cval is equal to ":" or cval is equal to ")" or cval is equal to "]" or cval is equal to ",") then
+                set loop_active to 0.
+            otherwise if ctype is equal to "PUNCTUATION" and cval is equal to "." then
+                let nxt be peek_tok with p, 1.
+                if (is_name_tok with nxt) is equal to 1 then
+                    advance_tok with p.
+                    let m_tok be cur_tok with p.
+                    advance_tok with p.
+                    let m_node be Table.
+                    set m_node["kind"] to "MemberAccess".
+                    set m_node["object"] to left.
+                    set m_node["member"] to m_tok["value"].
+                    set left to m_node.
+                otherwise
+                    set loop_active to 0.
+                end
+            otherwise if ctype is equal to "PUNCTUATION" and cval is equal to "[" then
+                advance_tok with p.
+                let idx_expr be parse_expr with p, 0, 0.
+                let close_b be cur_tok with p.
+                if close_b["type"] is equal to "PUNCTUATION" and close_b["value"] is equal to "]" then
+                    advance_tok with p.
+                end
+                let idx_node be Table.
+                set idx_node["kind"] to "IndexAccess".
+                set idx_node["object"] to left.
+                set idx_node["index"] to idx_expr.
+                set left to idx_node.
+            otherwise if ctype is equal to "KEYWORD" and cval is equal to "with" then
+                set left to parse_func_call with p, left, min_prec.
+            otherwise if ctype is equal to "OPERATOR" and cval is equal to "or return error" then
+                advance_tok with p.
+                let err_node be Table.
+                set err_node["kind"] to "BinOp".
+                set err_node["op"] to "or return error".
+                set err_node["left"] to left.
+                set err_node["right"] to None.
+                set left to err_node.
+            otherwise
+                let op_val be cur["value"].
+                let op_prec be token_prec with p, cur.
+                advance_tok with p.
+                skip_eols with p.
+                if op_val is equal to "is an" then
+                    let rtok be cur_tok with p.
+                    if rtok["value"] is equal to "Error" or rtok["value"] is equal to "Ok" then
+                        advance_tok with p.
+                        let bnode be Table.
+                        set bnode["kind"] to "BinOp".
+                        set bnode["op"] to concat with "is an ", rtok["value"].
+                        set bnode["left"] to left.
+                        set bnode["right"] to None.
+                        set left to bnode.
+                    otherwise
+                        let right be parse_expr with p, op_prec, in_args.
+                        let bnode be Table.
+                        set bnode["kind"] to "BinOp".
+                        set bnode["op"] to op_val.
+                        set bnode["left"] to left.
+                        set bnode["right"] to right.
+                        set left to bnode.
+                    end
+                otherwise
+                    let right be parse_expr with p, op_prec, in_args.
+                    let bnode be Table.
+                    set bnode["kind"] to "BinOp".
+                    set bnode["op"] to op_val.
+                    set bnode["left"] to left.
+                    set bnode["right"] to right.
+                    set left to bnode.
+                end
+            end
+        end
+    end
+
+    return left.
+end
+
+to parse_stmt_list with p, stop_a, stop_b:
+    let stmts be Vector.
+    skip_eols with p.
+    let running be 1.
+    while running is equal to 1:
+        let tok be cur_tok with p.
+        if tok["type"] is equal to "EOF" then
+            set running to 0.
+        otherwise if tok["type"] is equal to "KEYWORD" and (tok["value"] is equal to stop_a or tok["value"] is equal to stop_b) then
+            set running to 0.
+        otherwise
+            let st be parse_statement with p.
+            if not (st is none) then
+                push with stmts, st.
+            end
+            skip_eols with p.
+        end
+    end
+    return stmts.
+end
+
+to parse_if_stmt with p:
+    advance_tok with p.
+    let cases be Vector.
+    let else_body be Vector.
+    let has_else be 0.
+
+    let cond be parse_expr with p, 0, 0.
+    skip_eols with p.
+    let cur be cur_tok with p.
+    if cur["value"] is equal to "then" or cur["value"] is equal to ":" then
+        advance_tok with p.
+        let after_then be cur_tok with p.
+        if after_then["value"] is equal to ":" then
+            advance_tok with p.
+        end
+    end
+    skip_eols with p.
+    let body be parse_stmt_list with p, "otherwise", "end".
+    let first_case be Table.
+    set first_case["cond"] to cond.
+    set first_case["body"] to body.
+    push with cases, first_case.
+
+    let checking_otherwise be 1.
+    while checking_otherwise is equal to 1:
+        let ctok be cur_tok with p.
+        if ctok["type"] is equal to "KEYWORD" and ctok["value"] is equal to "otherwise" then
+            advance_tok with p.
+            let nxt be cur_tok with p.
+            if nxt["type"] is equal to "KEYWORD" and nxt["value"] is equal to "if" then
+                advance_tok with p.
+                let econd be parse_expr with p, 0, 0.
+                skip_eols with p.
+                let ethen be cur_tok with p.
+                if ethen["value"] is equal to "then" or ethen["value"] is equal to ":" then
+                    advance_tok with p.
+                    let after_ethen be cur_tok with p.
+                    if after_ethen["value"] is equal to ":" then
+                        advance_tok with p.
+                    end
+                end
+                skip_eols with p.
+                let ebody be parse_stmt_list with p, "otherwise", "end".
+                let ecase be Table.
+                set ecase["cond"] to econd.
+                set ecase["body"] to ebody.
+                push with cases, ecase.
+            otherwise
+                if nxt["value"] is equal to ":" then
+                    advance_tok with p.
+                end
+                skip_eols with p.
+                set else_body to parse_stmt_list with p, "end", "end".
+                set has_else to 1.
+                set checking_otherwise to 0.
+            end
+        otherwise
+            set checking_otherwise to 0.
+        end
+    end
+
+    let end_tok be cur_tok with p.
+    if end_tok["value"] is equal to "end" then
+        advance_tok with p.
+    end
+
+    let node be Table.
+    set node["kind"] to "If".
+    set node["cases"] to cases.
+    set node["else_body"] to else_body.
+    set node["has_else"] to has_else.
+    return node.
+end
+
+to parse_while_stmt with p:
+    advance_tok with p.
+    let cond be parse_expr with p, 0, 0.
+    let cur be cur_tok with p.
+    if cur["value"] is equal to ":" or cur["value"] is equal to "then" then
+        advance_tok with p.
+    end
+    skip_eols with p.
+    let body be parse_stmt_list with p, "end", "end".
+    let end_tok be cur_tok with p.
+    if end_tok["value"] is equal to "end" then
+        advance_tok with p.
+    end
+    let node be Table.
+    set node["kind"] to "While".
+    set node["cond"] to cond.
+    set node["body"] to body.
+    return node.
+end
+
+to parse_record_body with p:
+    let cur be cur_tok with p.
+    if cur["value"] is equal to "a" then
+        advance_tok with p.
+        set cur to cur_tok with p.
+    end
+    if cur["value"] is equal to "record" then
+        advance_tok with p.
+        set cur to cur_tok with p.
+    end
+    if cur["value"] is equal to "named" then
+        advance_tok with p.
+        set cur to cur_tok with p.
+    end
+    let rname_tok be cur_tok with p.
+    advance_tok with p.
+    let colon_tok be cur_tok with p.
+    if colon_tok["value"] is equal to ":" then
+        advance_tok with p.
+    end
+    skip_eols with p.
+    let props be Vector.
+    let methods be Vector.
+    let in_rec be 1.
+    while in_rec is equal to 1:
+        skip_eols with p.
+        let mtok be cur_tok with p.
+        if mtok["type"] is equal to "EOF" or mtok["value"] is equal to "end" then
+            set in_rec to 0.
+        otherwise if mtok["value"] is equal to "property" or mtok["value"] is equal to "let" then
+            advance_tok with p.
+            let pname_tok be cur_tok with p.
+            advance_tok with p.
+            let pval be None.
+            let kw_tok be cur_tok with p.
+            if kw_tok["value"] is equal to "with" or kw_tok["value"] is equal to "be" then
+                advance_tok with p.
+                let vcheck be cur_tok with p.
+                if vcheck["value"] is not equal to "." and vcheck["type"] is not equal to "EOL" then
+                    set pval to parse_expr with p, 0, 0.
+                end
+            end
+            consume_period with p.
+            let prop_node be Table.
+            set prop_node["name"] to pname_tok["value"].
+            set prop_node["value"] to pval.
+            push with props, prop_node.
+        otherwise if mtok["value"] is equal to "to" then
+            let mnode be parse_func_or_record with p.
+            push with methods, mnode.
+        otherwise
+            let st be parse_statement with p.
+        end
+    end
+    let end_tok be cur_tok with p.
+    if end_tok["value"] is equal to "end" then
+        advance_tok with p.
+    end
+    let rnode be Table.
+    set rnode["kind"] to "RecordDef".
+    set rnode["name"] to rname_tok["value"].
+    set rnode["props"] to props.
+    set rnode["methods"] to methods.
+    return rnode.
+end
+
+to parse_func_or_record with p:
+    advance_tok with p.
+    let cur be cur_tok with p.
+    if cur["value"] is equal to "export" then
+        advance_tok with p.
+        set cur to cur_tok with p.
+    end
+
+    if cur["value"] is equal to "define" then
+        advance_tok with p.
+        return parse_record_body with p.
+    end
+
+    let fname_tok be cur_tok with p.
+    advance_tok with p.
+    let params be Vector.
+    let wtok be cur_tok with p.
+    if wtok["value"] is equal to "with" then
+        advance_tok with p.
+        let reading_params be 1.
+        while reading_params is equal to 1:
+            let ptok be cur_tok with p.
+            if (is_name_tok with ptok) is equal to 1 then
+                push with params, ptok["value"].
+                advance_tok with p.
+                let ctok be cur_tok with p.
+                if ctok["value"] is equal to "," then
+                    advance_tok with p.
+                otherwise
+                    set reading_params to 0.
+                end
+            otherwise
+                set reading_params to 0.
+            end
+        end
+    end
+
+    let col_tok be cur_tok with p.
+    if col_tok["value"] is equal to ":" then
+        advance_tok with p.
+    end
+    skip_eols with p.
+    let body be parse_stmt_list with p, "end", "end".
+    let end_tok be cur_tok with p.
+    if end_tok["value"] is equal to "end" then
+        advance_tok with p.
+    end
+
+    let fnode be Table.
+    set fnode["kind"] to "FuncDef".
+    set fnode["name"] to fname_tok["value"].
+    set fnode["params"] to params.
+    set fnode["body"] to body.
+    return fnode.
+end
+
+to parse_statement with p:
+    skip_eols with p.
+    let tok be cur_tok with p.
+    let t be tok["type"].
+    let v be tok["value"].
+
+    if t is equal to "EOF" then
+        return None.
+    end
+
+    if t is equal to "KEYWORD" then
+        if v is equal to "export" then
+            advance_tok with p.
+            set tok to cur_tok with p.
+            set t to tok["type"].
+            set v to tok["value"].
+        end
+
+        if v is equal to "let" then
+            advance_tok with p.
+            let name_tok be cur_tok with p.
+            advance_tok with p.
+            let be_tok be cur_tok with p.
+            if be_tok["value"] is equal to "be" then
+                advance_tok with p.
+            end
+            let val_expr be parse_expr with p, 0, 0.
+            consume_period with p.
+            let node be Table.
+            set node["kind"] to "VarAssign".
+            set node["name"] to name_tok["value"].
+            set node["value"] to val_expr.
+            return node.
+        end
+
+        if v is equal to "set" then
+            advance_tok with p.
+            let target_expr be parse_expr with p, 0, 0.
+            let to_tok be cur_tok with p.
+            if to_tok["value"] is equal to "to" then
+                advance_tok with p.
+            end
+            let val_expr be parse_expr with p, 0, 0.
+            consume_period with p.
+            if target_expr["kind"] is equal to "IndexAccess" then
+                let node be Table.
+                set node["kind"] to "IndexAssign".
+                set node["object"] to target_expr["object"].
+                set node["index"] to target_expr["index"].
+                set node["value"] to val_expr.
+                return node.
+            end
+            let node be Table.
+            set node["kind"] to "Set".
+            set node["target"] to target_expr.
+            set node["value"] to val_expr.
+            return node.
+        end
+
+        if v is equal to "to" then
+            return parse_func_or_record with p.
+        end
+
+        if v is equal to "define" then
+            advance_tok with p.
+            return parse_record_body with p.
+        end
+
+        if v is equal to "if" then
+            return parse_if_stmt with p.
+        end
+
+        if v is equal to "while" then
+            return parse_while_stmt with p.
+        end
+
+        if v is equal to "return" then
+            advance_tok with p.
+            let nxt be cur_tok with p.
+            if nxt["value"] is equal to "." or nxt["type"] is equal to "EOL" then
+                consume_period with p.
+                let node be Table.
+                set node["kind"] to "Return".
+                set node["value"] to None.
+                return node.
+            end
+            let val_expr be parse_expr with p, 0, 0.
+            consume_period with p.
+            let node be Table.
+            set node["kind"] to "Return".
+            set node["value"] to val_expr.
+            return node.
+        end
+
+        if v is equal to "import" or v is equal to "from" then
+            while (cur_tok with p)["type"] is not equal to "EOF" and (cur_tok with p)["value"] is not equal to ".":
+                advance_tok with p.
+            end
+            consume_period with p.
+            return None.
+        end
+    end
+
+    let expr be parse_expr with p, 0, 0.
+    consume_period with p.
+    if expr["kind"] is equal to "VarAccess" or expr["kind"] is equal to "MemberAccess" then
+        let call_node be Table.
+        set call_node["kind"] to "FuncCall".
+        set call_node["callee"] to expr.
+        set call_node["args"] to Vector.
+        return call_node.
+    end
+    return expr.
+end
+
+to parse_program with tokens:
+    let p be make_parser with tokens.
+    let stmts be parse_stmt_list with p, "", "".
+    let prog be Table.
+    set prog["kind"] to "Program".
+    set prog["statements"] to stmts.
+    return prog.
+end
+
+// --- Zig 0.17 Code Generator ---
+
+to escape_zig_string with s:
+    let Q be from_char_code with 34.
+    let BS be from_char_code with 92.
+    let out be Q.
+    let slen be length with s.
+    let i be 0.
+    while i is less than slen:
+        let ch be char_at with s, i.
+        let code be char_code with ch.
+        if code is equal to 92 then
+            set out to concat with out, (concat with BS, BS).
+        otherwise if code is equal to 34 then
+            set out to concat with out, (concat with BS, Q).
+        otherwise if code is equal to 10 then
+            set out to concat with out, (concat with BS, "n").
+        otherwise if code is equal to 9 then
+            set out to concat with out, (concat with BS, "t").
+        otherwise if code is equal to 13 then
+            set out to concat with out, (concat with BS, "r").
+        otherwise
+            set out to concat with out, ch.
+        end
+        set i to i plus 1.
+    end
+    set out to concat with out, Q.
+    return out.
+end
+
+to is_stdlib_fn with name:
+    if name is equal to "print" or name is equal to "trim" or name is equal to "to_upper" or name is equal to "to_lower" or name is equal to "split" then return 1. end
+    if name is equal to "string_length" or name is equal to "length" or name is equal to "substring" or name is equal to "slice" or name is equal to "char_at" then return 1. end
+    if name is equal to "char_code" or name is equal to "from_char_code" or name is equal to "starts_with" or name is equal to "contains" then return 1. end
+    if name is equal to "index_of" or name is equal to "concat" or name is equal to "replace" or name is equal to "number" or name is equal to "to_number" then return 1. end
+    if name is equal to "read_file" or name is equal to "write_file" or name is equal to "file_exists" or name is equal to "get_args" or name is equal to "join" then return 1. end
+    if name is equal to "sqrt" or name is equal to "pow" or name is equal to "abs" or name is equal to "min" then return 1. end
+    if name is equal to "max" or name is equal to "floor" or name is equal to "ceil" or name is equal to "round" or name is equal to "random" then return 1. end
+    if name is equal to "sin" or name is equal to "cos" or name is equal to "tan" then return 1. end
+    if name is equal to "sort" or name is equal to "keys" or name is equal to "values" or name is equal to "size" then return 1. end
+    if name is equal to "push" or name is equal to "pop" or name is equal to "insert" or name is equal to "remove" or name is equal to "has_key" or name is equal to "to_string" then return 1. end
+    if name is equal to "type_of" or name is equal to "check_number" or name is equal to "check_string" or name is equal to "check_vector" then return 1. end
+    if name is equal to "check_table" or name is equal to "check_record" or name is equal to "is_none" then return 1. end
+    if name is equal to "input" or name is equal to "random_int" or name is equal to "ui_set_text" or name is equal to "ui_get_property" then return 1. end
+    if name is equal to "get_game_object" or name is equal to "destroy_game_object" or name is equal to "find_game_objects_with_tag" then return 1. end
+    return 0.
+end
+
+to var_ref_zig with name, scope:
+    if (has_key with scope, name) is equal to 1 then
+        return concat with "v_", name.
+    end
+    return concat with "g_", name.
+end
+
+to emit_expr with node, scope, funcs:
+    if node is none then
+        return "Value.none".
+    end
+    let kind be node["kind"].
+
+    if kind is equal to "Number" then
+        let v be node["value"].
+        if (contains with v, ".") is equal to 1 then
+            return concat with "Value.fromNumber(", (concat with v, ")").
+        end
+        return concat with "Value.fromNumber(", (concat with v, ".0)").
+    end
+
+    if kind is equal to "String" then
+        let esc be escape_zig_string with node["value"].
+        return concat with "Value.fromString(", (concat with esc, ")").
+    end
+
+    if kind is equal to "Vector" then
+        return "(try rt.makeVector())".
+    end
+
+    if kind is equal to "Table" then
+        return "(try rt.makeTable())".
+    end
+
+    if kind is equal to "Self" then
+        return "v_self".
+    end
+
+    if kind is equal to "VarAccess" then
+        let name be node["name"].
+        if name is equal to "None" or name is equal to "none" then return "Value.none". end
+        if name is equal to "true" then return "Value.fromNumber(1.0)". end
+        if name is equal to "false" then return "Value.fromNumber(0.0)". end
+        if name is equal to "get_args" then return "(try rt.callStdlib(\"get_args\", &.{}))". end
+        if (has_key with scope, name) is equal to 0 and (has_key with funcs, name) is equal to 1 then
+            if funcs[name] is equal to 0 then
+                return concat with "(try engage_fn_", (concat with name, "(rt))").
+            end
+        end
+        return var_ref_zig with name, scope.
+    end
+
+    if kind is equal to "Result" then
+        let rtype be node["res_type"].
+        let val_z be emit_expr with node["value"], scope, funcs.
+        if rtype is equal to "Ok" then
+            return concat with "(try rt.makeResult(true, ", (concat with val_z, "))").
+        end
+        return concat with "(try rt.makeResult(false, ", (concat with val_z, "))").
+    end
+
+    if kind is equal to "NewInstance" then
+        let rname be node["name"].
+        let props be node["props"].
+        let order be node["prop_order"].
+        let nprops be length with order.
+        let args_str be "".
+        let i be 0.
+        while i is less than nprops:
+            let pname be order[i].
+            let esc_p be escape_zig_string with pname.
+            let pval_z be emit_expr with props[pname], scope, funcs.
+            if i is greater than 0 then
+                set args_str to concat with args_str, ", ".
+            end
+            set args_str to concat with args_str, (concat with ".{ .name = ", (concat with esc_p, (concat with ", .val = ", (concat with pval_z, " }")))).
+            set i to i plus 1.
+        end
+        return concat with "(try engage_new_", (concat with rname, (concat with "(rt, &.{", (concat with args_str, "}))"))).
+    end
+
+    if kind is equal to "MemberAccess" then
+        let obj_z be emit_expr with node["object"], scope, funcs.
+        let esc_m be escape_zig_string with node["member"].
+        return concat with "(try engage_get_member(rt, ", (concat with obj_z, (concat with ", ", (concat with esc_m, "))"))).
+    end
+
+    if kind is equal to "IndexAccess" then
+        let obj_z be emit_expr with node["object"], scope, funcs.
+        let idx_z be emit_expr with node["index"], scope, funcs.
+        return concat with "(try rt.indexGet(", (concat with obj_z, (concat with ", ", (concat with idx_z, "))"))).
+    end
+
+    if kind is equal to "UnaryOp" then
+        let op be node["op"].
+        let rand_node be node["operand"].
+        if op is equal to "call" then
+            if rand_node["kind"] is equal to "VarAccess" then
+                let fn_name be rand_node["name"].
+                if (is_stdlib_fn with fn_name) is equal to 1 then
+                    let esc_fn be escape_zig_string with fn_name.
+                    return concat with "(try rt.callStdlib(", (concat with esc_fn, ", &.{}))").
+                end
+                return concat with "(try engage_fn_", (concat with fn_name, "(rt))").
+            end
+            return emit_expr with rand_node, scope, funcs.
+        end
+        let rand_z be emit_expr with rand_node, scope, funcs.
+        if op is equal to "not" then
+            return concat with "Runtime.logicalNot(", (concat with rand_z, ")").
+        end
+        if op is equal to "-" or op is equal to "minus" then
+            return concat with "Runtime.neg(", (concat with rand_z, ")").
+        end
+        if op is equal to "the ok value of" then
+            return concat with "Runtime.okValueOf(", (concat with rand_z, ")").
+        end
+        if op is equal to "the error message of" then
+            return concat with "Runtime.errorMessageOf(", (concat with rand_z, ")").
+        end
+        return rand_z.
+    end
+
+    if kind is equal to "BinOp" then
+        let op be node["op"].
+        let l_z be emit_expr with node["left"], scope, funcs.
+        if op is equal to "or return error" then
+            return concat with "(try rt.unwrapOrReturnError(", (concat with l_z, "))").
+        end
+        if op is equal to "is an Ok" then
+            return concat with "Runtime.isAnOk(", (concat with l_z, ")").
+        end
+        if op is equal to "is an Error" then
+            return concat with "Runtime.isAnError(", (concat with l_z, ")").
+        end
+        let r_z be emit_expr with node["right"], scope, funcs.
+
+        if op is equal to "plus" or op is equal to "+" then
+            return concat with "(try rt.add(", (concat with l_z, (concat with ", ", (concat with r_z, "))"))).
+        end
+        if op is equal to "concatenated with" then
+            return concat with "(try rt.concat(", (concat with l_z, (concat with ", ", (concat with r_z, "))"))).
+        end
+        if op is equal to "minus" or op is equal to "-" then
+            return concat with "Runtime.sub(", (concat with l_z, (concat with ", ", (concat with r_z, ")"))).
+        end
+        if op is equal to "times" or op is equal to "*" then
+            return concat with "Runtime.mul(", (concat with l_z, (concat with ", ", (concat with r_z, ")"))).
+        end
+        if op is equal to "divided by" or op is equal to "/" then
+            return concat with "Runtime.div(", (concat with l_z, (concat with ", ", (concat with r_z, ")"))).
+        end
+        if op is equal to "modulo" or op is equal to "%" then
+            return concat with "Runtime.mod(", (concat with l_z, (concat with ", ", (concat with r_z, ")"))).
+        end
+        if op is equal to "is" or op is equal to "is equal to" or op is equal to "==" then
+            return concat with "Runtime.eql(", (concat with l_z, (concat with ", ", (concat with r_z, ")"))).
+        end
+        if op is equal to "is not" or op is equal to "is not equal to" or op is equal to "!=" then
+            return concat with "Runtime.neq(", (concat with l_z, (concat with ", ", (concat with r_z, ")"))).
+        end
+        if op is equal to "is greater than" or op is equal to ">" then
+            return concat with "Runtime.gt(", (concat with l_z, (concat with ", ", (concat with r_z, ")"))).
+        end
+        if op is equal to "is less than" or op is equal to "<" then
+            return concat with "Runtime.lt(", (concat with l_z, (concat with ", ", (concat with r_z, ")"))).
+        end
+        if op is equal to "is greater than or equal to" or op is equal to ">=" then
+            return concat with "Runtime.gte(", (concat with l_z, (concat with ", ", (concat with r_z, ")"))).
+        end
+        if op is equal to "is less than or equal to" or op is equal to "<=" then
+            return concat with "Runtime.lte(", (concat with l_z, (concat with ", ", (concat with r_z, ")"))).
+        end
+        if op is equal to "and" then
+            return concat with "Value.fromBool((", (concat with l_z, (concat with ").isTruthy() and (", (concat with r_z, ").isTruthy())"))).
+        end
+        if op is equal to "or" then
+            return concat with "Value.fromBool((", (concat with l_z, (concat with ").isTruthy() or (", (concat with r_z, ").isTruthy())"))).
+        end
+        return "Value.none".
+    end
+
+    if kind is equal to "FuncCall" then
+        let callee be node["callee"].
+        let args be node["args"].
+        let nargs be length with args.
+        let args_z be "".
+        let i be 0.
+        while i is less than nargs:
+            if i is greater than 0 then
+                set args_z to concat with args_z, ", ".
+            end
+            let a_z be emit_expr with args[i], scope, funcs.
+            set args_z to concat with args_z, a_z.
+            set i to i plus 1.
+        end
+
+        if callee["kind"] is equal to "MemberAccess" then
+            let obj_z be emit_expr with callee["object"], scope, funcs.
+            let esc_m be escape_zig_string with callee["member"].
+            return concat with "(try engage_call_method(rt, ", (concat with obj_z, (concat with ", ", (concat with esc_m, (concat with ", &.{", (concat with args_z, "}))"))))).
+        end
+
+        if callee["kind"] is equal to "VarAccess" then
+            let fname be callee["name"].
+            if (is_stdlib_fn with fname) is equal to 1 then
+                let esc_f be escape_zig_string with fname.
+                return concat with "(try rt.callStdlib(", (concat with esc_f, (concat with ", &.{", (concat with args_z, "}))"))).
+            end
+            if nargs is equal to 0 then
+                return concat with "(try engage_fn_", (concat with fname, "(rt))").
+            end
+            return concat with "(try engage_fn_", (concat with fname, (concat with "(rt, ", (concat with args_z, "))"))).
+        end
+
+        return "Value.none".
+    end
+
+    return "Value.none".
+end
+
+to make_indent with level:
+    let s be "".
+    let i be 0.
+    while i is less than level:
+        set s to concat with s, "    ".
+        set i to i plus 1.
+    end
+    return s.
+end
+
+to emit_stmt with st, lines, indent, scope, is_top, funcs:
+    if st is none then
+        return 0.
+    end
+    let kind be st["kind"].
+    let pad be make_indent with indent.
+
+    if kind is equal to "VarAssign" then
+        let raw_name be st["name"].
+        let val_z be emit_expr with st["value"], scope, funcs.
+        if is_top is equal to 1 and (has_key with scope, raw_name) is equal to 0 then
+            push with lines, (concat with pad, (concat with "g_", (concat with raw_name, (concat with " = ", (concat with val_z, ";"))))).
+        otherwise if (has_key with scope, raw_name) is equal to 1 then
+            push with lines, (concat with pad, (concat with "v_", (concat with raw_name, (concat with " = ", (concat with val_z, ";"))))).
+        otherwise
+            set scope[raw_name] to 1.
+            push with lines, (concat with pad, (concat with "var v_", (concat with raw_name, (concat with ": Value = ", (concat with val_z, (concat with "; _ = &v_", (concat with raw_name, ";"))))))).
+        end
+        return 0.
+    end
+
+    if kind is equal to "Set" then
+        let target be st["target"].
+        let v_z be emit_expr with st["value"], scope, funcs.
+        if target["kind"] is equal to "VarAccess" then
+            let vref be var_ref_zig with target["name"], scope.
+            push with lines, (concat with pad, (concat with vref, (concat with " = ", (concat with v_z, ";")))).
+        otherwise if target["kind"] is equal to "MemberAccess" then
+            let obj_z be emit_expr with target["object"], scope, funcs.
+            let esc_m be escape_zig_string with target["member"].
+            push with lines, (concat with pad, (concat with "try rt.memberSet(", (concat with obj_z, (concat with ", ", (concat with esc_m, (concat with ", ", (concat with v_z, ");"))))))).
+        otherwise if target["kind"] is equal to "IndexAccess" then
+            let obj_z be emit_expr with target["object"], scope, funcs.
+            let idx_z be emit_expr with target["index"], scope, funcs.
+            push with lines, (concat with pad, (concat with "try rt.indexSet(", (concat with obj_z, (concat with ", ", (concat with idx_z, (concat with ", ", (concat with v_z, ");"))))))).
+        end
+        return 0.
+    end
+
+    if kind is equal to "IndexAssign" then
+        let o_z be emit_expr with st["object"], scope, funcs.
+        let i_z be emit_expr with st["index"], scope, funcs.
+        let v_z be emit_expr with st["value"], scope, funcs.
+        push with lines, (concat with pad, (concat with "try rt.indexSet(", (concat with o_z, (concat with ", ", (concat with i_z, (concat with ", ", (concat with v_z, ");"))))))).
+        return 0.
+    end
+
+    if kind is equal to "Return" then
+        if st["value"] is none then
+            push with lines, (concat with pad, "return Value.none;").
+        otherwise
+            let v_z be emit_expr with st["value"], scope, funcs.
+            push with lines, (concat with pad, (concat with "return ", (concat with v_z, ";"))).
+        end
+        return 0.
+    end
+
+    if kind is equal to "If" then
+        let cases be st["cases"].
+        let ncases be length with cases.
+        let i be 0.
+        while i is less than ncases:
+            let c be cases[i].
+            let cond_z be emit_expr with c["cond"], scope, funcs.
+            if i is equal to 0 then
+                push with lines, (concat with pad, (concat with "if ((", (concat with cond_z, ").isTruthy()) {"))).
+            otherwise
+                push with lines, (concat with pad, (concat with "} else if ((", (concat with cond_z, ").isTruthy()) {"))).
+            end
+            let body be c["body"].
+            let b_len be length with body.
+            let j be 0.
+            while j is less than b_len:
+                emit_stmt with body[j], lines, (indent plus 1), scope, 0, funcs.
+                set j to j plus 1.
+            end
+            set i to i plus 1.
+        end
+        if st["has_else"] is equal to 1 then
+            push with lines, (concat with pad, "} else {").
+            let ebody be st["else_body"].
+            let e_len be length with ebody.
+            let k be 0.
+            while k is less than e_len:
+                emit_stmt with ebody[k], lines, (indent plus 1), scope, 0, funcs.
+                set k to k plus 1.
+            end
+        end
+        push with lines, (concat with pad, "}").
+        return 0.
+    end
+
+    if kind is equal to "While" then
+        let cond_z be emit_expr with st["cond"], scope, funcs.
+        push with lines, (concat with pad, (concat with "while ((", (concat with cond_z, ").isTruthy()) {"))).
+        let body be st["body"].
+        let b_len be length with body.
+        let j be 0.
+        while j is less than b_len:
+            emit_stmt with body[j], lines, (indent plus 1), scope, 0, funcs.
+            set j to j plus 1.
+        end
+        push with lines, (concat with pad, "}").
+        return 0.
+    end
+
+    let expr_z be emit_expr with st, scope, funcs.
+    push with lines, (concat with pad, (concat with "_ = ", (concat with expr_z, ";"))).
+    return 0.
+end
+
+to emit_func_def with fn, lines, rec_name, funcs:
+    let fname be fn["name"].
+    let full_name be concat with "engage_fn_", fname.
+    let param_sig be "rt: *Runtime".
+    let fwd_args be "rt".
+    if rec_name is not equal to "" then
+        set full_name to concat with "engage_method_", (concat with rec_name, (concat with "_", fname)).
+        set param_sig to concat with param_sig, ", p_self: Value".
+        set fwd_args to concat with fwd_args, ", p_self".
+    end
+    let params be fn["params"].
+    let nparams be length with params.
+    let scope be Table.
+    let i be 0.
+    while i is less than nparams:
+        let pname be params[i].
+        set scope[pname] to 1.
+        set param_sig to concat with param_sig, (concat with ", p_", (concat with pname, ": Value")).
+        set fwd_args to concat with fwd_args, (concat with ", p_", pname).
+        set i to i plus 1.
+    end
+
+    push with lines, (concat with "fn ", (concat with full_name, (concat with "_impl(", (concat with param_sig, ") anyerror!Value {")))).
+    push with lines, "    rt.touch();".
+    if rec_name is not equal to "" then
+        push with lines, "    var v_self: Value = p_self; _ = &v_self;".
+    end
+    set i to 0.
+    while i is less than nparams:
+        let pname be params[i].
+        push with lines, (concat with "    var v_", (concat with pname, (concat with ": Value = p_", (concat with pname, (concat with "; _ = &v_", (concat with pname, ";")))))).
+        set i to i plus 1.
+    end
+    let body be fn["body"].
+    let blen be length with body.
+    let j be 0.
+    while j is less than blen:
+        emit_stmt with body[j], lines, 1, scope, 0, funcs.
+        set j to j plus 1.
+    end
+    let ends_with_ret be 0.
+    if blen is greater than 0 then
+        let last_st be body[blen minus 1].
+        if not (last_st is none) and last_st["kind"] is equal to "Return" then
+            set ends_with_ret to 1.
+        end
+    end
+    if ends_with_ret is equal to 0 then
+        push with lines, "    return Value.none;".
+    end
+    push with lines, "}".
+    push with lines, (concat with "fn ", (concat with full_name, (concat with "(", (concat with param_sig, ") anyerror!Value {")))).
+    push with lines, (concat with "    return ", (concat with full_name, (concat with "_impl(", (concat with fwd_args, ") catch |err| switch (err) {")))).
+    push with lines, "        error.EngagePropagateError => return rt.propagated_error,".
+    push with lines, "        else => return err,".
+    push with lines, "    };".
+    push with lines, "}".
+    push with lines, "".
+    return 0.
+end
+
+to emit_record_def with rec, lines, funcs:
+    let rname be rec["name"].
+    let esc_rname be escape_zig_string with rname.
+    push with lines, (concat with "fn engage_new_", (concat with rname, "(rt: *Runtime, props: []const PropKV) anyerror!Value {")).
+    push with lines, (concat with "    const rec = try rt.makeRecord(", (concat with esc_rname, ");")).
+    let props be rec["props"].
+    let nprops be length with props.
+    let empty_scope be Table.
+    let i be 0.
+    while i is less than nprops:
+        let prop be props[i].
+        let esc_p be escape_zig_string with prop["name"].
+        let pval_z be emit_expr with prop["value"], empty_scope, funcs.
+        push with lines, (concat with "    try rec.fields.put(rt.allocator, ", (concat with esc_p, (concat with ", ", (concat with pval_z, ");")))).
+        set i to i plus 1.
+    end
+    push with lines, "    for (props) |p| try rec.fields.put(rt.allocator, p.name, p.val);".
+    push with lines, "    return .{ .record = rec };".
+    push with lines, "}".
+    push with lines, "".
+    let methods be rec["methods"].
+    let nmethods be length with methods.
+    let m be 0.
+    while m is less than nmethods:
+        emit_func_def with methods[m], lines, rname, funcs.
+        set m to m plus 1.
+    end
+    return 0.
+end
+
+to generate_zig_program with ast:
+    let lines be Vector.
+    let rt_src be read_file with "src/runtime.zig".
+    push with lines, "// Generated by Engage Self-Hosting Compiler (Engage v3 -> Zig)".
+    push with lines, rt_src.
+    push with lines, "".
+    push with lines, "const PropKV = struct { name: []const u8, val: Value };".
+    push with lines, "".
+
+    let stmts be ast["statements"].
+    let nstmts be length with stmts.
+    let globals be Table.
+    let funcs be Table.
+    let recs be Vector.
+
+    let i be 0.
+    while i is less than nstmts:
+        let st be stmts[i].
+        if not (st is none) then
+            let k be st["kind"].
+            if k is equal to "VarAssign" then
+                let gname be st["name"].
+                if (has_key with globals, gname) is equal to 0 then
+                    set globals[gname] to 1.
+                    push with lines, (concat with "var g_", (concat with gname, ": Value = .none;")).
+                end
+            otherwise if k is equal to "FuncDef" then
+                set funcs[st["name"]] to (length with st["params"]).
+            otherwise if k is equal to "RecordDef" then
+                push with recs, st.
+            end
+        end
+        set i to i plus 1.
+    end
+    push with lines, "".
+
+    // Emit records and their methods
+    let nrecs be length with recs.
+    set i to 0.
+    while i is less than nrecs:
+        emit_record_def with recs[i], lines, funcs.
+        set i to i plus 1.
+    end
+
+    // Emit engage_get_member and engage_call_method
+    push with lines, "fn engage_get_member(rt: *Runtime, obj: Value, member: []const u8) anyerror!Value {".
+    push with lines, "    rt.touch();".
+    push with lines, "    if (obj == .record) {".
+    push with lines, "        if (obj.record.fields.get(member)) |v| return v;".
+    set i to 0.
+    while i is less than nrecs:
+        let rec be recs[i].
+        let rname be rec["name"].
+        let esc_r be escape_zig_string with rname.
+        let methods be rec["methods"].
+        let nm be length with methods.
+        let m be 0.
+        while m is less than nm:
+            let md be methods[m].
+            if (length with md["params"]) is equal to 0 then
+                let esc_m be escape_zig_string with md["name"].
+                push with lines, (concat with "        if (std.mem.eql(u8, obj.record.type_name, ", (concat with esc_r, (concat with ") and std.mem.eql(u8, member, ", (concat with esc_m, (concat with ")) return engage_method_", (concat with rname, (concat with "_", (concat with md["name"], "(rt, obj);")))))))).
+            end
+            set m to m plus 1.
+        end
+        set i to i plus 1.
+    end
+    push with lines, "    }".
+    push with lines, "    return Runtime.memberGet(obj, member);".
+    push with lines, "}".
+    push with lines, "".
+
+    push with lines, "fn engage_call_method(rt: *Runtime, obj: Value, member: []const u8, args: []const Value) anyerror!Value {".
+    push with lines, "    if (obj == .record) {".
+    set i to 0.
+    while i is less than nrecs:
+        let rec be recs[i].
+        let rname be rec["name"].
+        let esc_r be escape_zig_string with rname.
+        let methods be rec["methods"].
+        let nm be length with methods.
+        let m be 0.
+        while m is less than nm:
+            let md be methods[m].
+            let esc_m be escape_zig_string with md["name"].
+            let np be length with md["params"].
+            let margs be "rt, obj".
+            let p be 0.
+            while p is less than np:
+                let ps be to_string with p.
+                set margs to concat with margs, (concat with ", if (args.len > ", (concat with ps, (concat with ") args[", (concat with ps, "] else Value.none")))).
+                set p to p plus 1.
+            end
+            push with lines, (concat with "        if (std.mem.eql(u8, obj.record.type_name, ", (concat with esc_r, (concat with ") and std.mem.eql(u8, member, ", (concat with esc_m, (concat with ")) return engage_method_", (concat with rname, (concat with "_", (concat with md["name"], (concat with "(", (concat with margs, ");")))))))))).
+            set m to m plus 1.
+        end
+        set i to i plus 1.
+    end
+    push with lines, "    }".
+    push with lines, "    if (Runtime.isStdlibFn(member)) {".
+    push with lines, "        if (obj == .vector or obj == .table) {".
+    push with lines, "            var full: std.ArrayList(Value) = .empty;".
+    push with lines, "            try full.append(rt.allocator, obj);".
+    push with lines, "            try full.appendSlice(rt.allocator, args);".
+    push with lines, "            return rt.callStdlib(member, full.items);".
+    push with lines, "        }".
+    push with lines, "        return rt.callStdlib(member, args);".
+    push with lines, "    }".
+    push with lines, "    return engage_get_member(rt, obj, member);".
+    push with lines, "}".
+    push with lines, "".
+
+    // Emit top-level functions
+    set i to 0.
+    while i is less than nstmts:
+        let st be stmts[i].
+        if not (st is none) and st["kind"] is equal to "FuncDef" then
+            emit_func_def with st, lines, "", funcs.
+        end
+        set i to i plus 1.
+    end
+
+    // Emit top-level runner and main
+    push with lines, "fn engage_run_top_level(rt: *Runtime) anyerror!void {".
+    push with lines, "    rt.touch();".
+    let top_scope be Table.
+    set i to 0.
+    while i is less than nstmts:
+        let st be stmts[i].
+        if not (st is none) then
+            let k be st["kind"].
+            if k is not equal to "RecordDef" and k is not equal to "FuncDef" then
+                emit_stmt with st, lines, 1, top_scope, 1, funcs.
+            end
+        end
+        set i to i plus 1.
+    end
+    push with lines, "}".
+    push with lines, "".
+    push with lines, "pub fn main(init: std.process.Init) !void {".
+    push with lines, "    const alloc = init.arena.allocator();".
+    push with lines, "    var rt = Runtime.init(alloc, init.io);".
+    push with lines, "    const raw_args = try init.minimal.args.toSlice(alloc);".
+    push with lines, "    if (raw_args.len > 1) {".
+    push with lines, "        for (raw_args[1..]) |a| {".
+    push with lines, "            try rt.cli_args.append(alloc, Value.fromString(a));".
+    push with lines, "        }".
+    push with lines, "    }".
+    push with lines, "    engage_run_top_level(&rt) catch |err| switch (err) {".
+    push with lines, "        error.EngagePropagateError => {},".
+    push with lines, "        else => return err,".
+    push with lines, "    };".
+    push with lines, "}".
+
+    let NL be from_char_code with 10.
+    return join with lines, NL.
+end
+
+to compile_engage_file with input_path, output_path:
+    print with "Engage Self-Hosting Compiler: Compiling", input_path, "->", output_path.
+    let src be read_file with input_path.
+    let tokens be tokenize_source with src.
+    print with "  Lexed tokens:", (length with tokens).
+    let ast be parse_program with tokens.
+    print with "  Parsed top-level statements:", (length with ast["statements"]).
+    let zig_code be generate_zig_program with ast.
+    let ok be write_file with output_path, zig_code.
+    print with "  Wrote Zig output bytes:", (length with zig_code).
+    return ok.
+end
+
+// --- CLI Entry Point ---
+
+let cli_args be call get_args.
+let arg_count be length with cli_args.
+let in_file be "engage_compiler.engage".
+let out_file be "stage_out.zig".
+
+if arg_count is greater than or equal to 1 then
+    set in_file to cli_args[0].
+end
+if arg_count is greater than or equal to 2 then
+    set out_file to cli_args[1].
+end
+
+compile_engage_file with in_file, out_file.

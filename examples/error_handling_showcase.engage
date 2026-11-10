@@ -1,0 +1,544 @@
+// error_handling_showcase.engage
+// Comprehensive demonstration of enhanced error reporting and handling
+// This program showcases various error scenarios and recovery mechanisms
+
+print with "=== Error Handling Showcase Demo ===".
+
+// Define a record for safe mathematical operations
+to define SafeMathOperations:
+    property error_log with Vector.
+    property operation_count with 0.
+    property success_count with 0.
+    
+    to log_error with operation, error_message:
+        let error_entry be Table.
+        set error_entry["operation"] to operation.
+        set error_entry["error"] to error_message.
+        set error_entry["timestamp"] to self.operation_count.
+        
+        let len be push with self.error_log, error_entry.
+        print with "❌ Error logged: " concatenated with operation concatenated with " - " concatenated with error_message.
+        return len.
+    end
+    
+    to safe_divide with numerator, denominator:
+        set self.operation_count to self.operation_count plus 1.
+        
+        if denominator is equal to 0 then
+            let error_len be self.log_error with "division", "Division by zero is undefined".
+            return None.
+        end
+        
+        set self.success_count to self.success_count plus 1.
+        return numerator divided by denominator.
+    end
+    
+    to safe_sqrt with value:
+        set self.operation_count to self.operation_count plus 1.
+        
+        if value is less than 0 then
+            let error_len be self.log_error with "square_root", "Square root of negative number is undefined".
+            return None.
+        end
+        
+        set self.success_count to self.success_count plus 1.
+        return sqrt with value.
+    end
+    
+    to safe_factorial with n:
+        set self.operation_count to self.operation_count plus 1.
+        
+        if n is less than 0 then
+            let error_len be self.log_error with "factorial", "Factorial is not defined for negative numbers".
+            return None.
+        end
+        
+        if n is greater than 20 then
+            let error_len be self.log_error with "factorial", "Factorial calculation would overflow for numbers > 20".
+            return None.
+        end
+        
+        set self.success_count to self.success_count plus 1.
+        
+        if n is equal to 0 or n is equal to 1 then
+            return 1.
+        end
+        
+        let result be 1.
+        let i be 2.
+        while i is less than or equal to n:
+            set result to result times i.
+            set i to i plus 1.
+        end
+        
+        return result.
+    end
+    
+    to safe_array_access with array, index:
+        set self.operation_count to self.operation_count plus 1.
+        
+        let array_length be length with array.
+        
+        if index is less than 0 then
+            let error_len be self.log_error with "array_access", "Array index cannot be negative".
+            return None.
+        end
+        
+        if index is greater than or equal to array_length then
+            let error_len be self.log_error with "array_access", "Array index out of bounds".
+            return None.
+        end
+        
+        set self.success_count to self.success_count plus 1.
+        return array[index].
+    end
+    
+    to get_error_summary:
+        let error_count be length with self.error_log.
+        let success_rate be 0.
+        
+        if self.operation_count is greater than 0 then
+            set success_rate to self.success_count times 100 divided by self.operation_count.
+        end
+        
+        let summary be Table.
+        set summary["total_operations"] to self.operation_count.
+        set summary["successful_operations"] to self.success_count.
+        set summary["error_count"] to error_count.
+        set summary["success_rate"] to success_rate.
+        
+        return summary.
+    end
+    
+    to print_error_log:
+        let error_count be length with self.error_log.
+        
+        if error_count is equal to 0 then
+            print with "✅ No errors recorded!".
+            return.
+        end
+        
+        print with "=== Error Log ===".
+        let i be 0.
+        while i is less than error_count:
+            let error_entry be self.error_log[i].
+            let entry_num be i plus 1.
+            
+            print with "Error " concatenated with to_string with entry_num concatenated with ":".
+            print with "  Operation: " concatenated with error_entry["operation"].
+            print with "  Message: " concatenated with error_entry["error"].
+            print with "  Timestamp: " concatenated with to_string with error_entry["timestamp"].
+            
+            set i to i plus 1.
+        end
+    end
+end
+
+// Define a record for input validation
+to define InputValidator:
+    property validation_rules with Table.
+    property validation_errors with Vector.
+    
+    to add_rule with field_name, rule_type, rule_value:
+        let rule be Table.
+        set rule["type"] to rule_type.
+        set rule["value"] to rule_value.
+        set self.validation_rules[field_name] to rule.
+    end
+    
+    to validate_field with field_name, value:
+        let rule be self.validation_rules[field_name].
+        
+        if rule is equal to None then
+            return 1.  // No rule means valid
+        end
+        
+        let rule_type be rule["type"].
+        let rule_value be rule["value"].
+        
+        if rule_type is equal to "min_length" then
+            let value_length be length with value.
+            if value_length is less than rule_value then
+                let error_msg be field_name concatenated with " must be at least " concatenated with to_string with rule_value concatenated with " characters".
+                let len be push with self.validation_errors, error_msg.
+                return 0.
+            end
+            
+        otherwise if rule_type is equal to "max_length" then
+            let value_length be length with value.
+            if value_length is greater than rule_value then
+                let error_msg be field_name concatenated with " must be no more than " concatenated with to_string with rule_value concatenated with " characters".
+                let len be push with self.validation_errors, error_msg.
+                return 0.
+            end
+            
+        otherwise if rule_type is equal to "min_value" then
+            if value is less than rule_value then
+                let error_msg be field_name concatenated with " must be at least " concatenated with to_string with rule_value.
+                let len be push with self.validation_errors, error_msg.
+                return 0.
+            end
+            
+        otherwise if rule_type is equal to "max_value" then
+            if value is greater than rule_value then
+                let error_msg be field_name concatenated with " must be no more than " concatenated with to_string with rule_value.
+                let len be push with self.validation_errors, error_msg.
+                return 0.
+            end
+        end
+        
+        return 1.
+    end
+    
+    to validate_all with data:
+        // Clear previous errors
+        set self.validation_errors to Vector.
+        
+        let field_names be keys with data.
+        let field_count be length with field_names.
+        let all_valid be 1.
+        
+        let i be 0.
+        while i is less than field_count:
+            let field_name be field_names[i].
+            let field_value be data[field_name].
+            
+            let is_valid be self.validate_field with field_name, field_value.
+            if is_valid is equal to 0 then
+                set all_valid to 0.
+            end
+            
+            set i to i plus 1.
+        end
+        
+        return all_valid.
+    end
+    
+    to get_validation_errors:
+        return self.validation_errors.
+    end
+    
+    to print_validation_errors:
+        let error_count be length with self.validation_errors.
+        
+        if error_count is equal to 0 then
+            print with "✅ All validation passed!".
+            return.
+        end
+        
+        print with "❌ Validation Errors:".
+        let i be 0.
+        while i is less than error_count:
+            let error_msg be self.validation_errors[i].
+            print with "  - " concatenated with error_msg.
+            set i to i plus 1.
+        end
+    end
+end
+
+// === Demo Execution ===
+
+print with "1. Safe Mathematical Operations Demo".
+
+let safe_math be new SafeMathOperations.
+
+// Test various mathematical operations with error conditions
+print with "Testing division operations:".
+let div1 be safe_math.safe_divide with 10, 2.
+print with "10 ÷ 2 = " concatenated with to_string with div1.
+
+let div2 be safe_math.safe_divide with 15, 0.  // This will cause an error
+if div2 is equal to None then
+    print with "Division by zero handled gracefully".
+end
+
+let div3 be safe_math.safe_divide with 20, 4.
+print with "20 ÷ 4 = " concatenated with to_string with div3.
+
+print with "".
+print with "Testing square root operations:".
+let sqrt1 be safe_math.safe_sqrt with 16.
+print with "√16 = " concatenated with to_string with sqrt1.
+
+let sqrt2 be safe_math.safe_sqrt with -9.  // This will cause an error
+if sqrt2 is equal to None then
+    print with "Negative square root handled gracefully".
+end
+
+let sqrt3 be safe_math.safe_sqrt with 25.
+print with "√25 = " concatenated with to_string with sqrt3.
+
+print with "".
+print with "Testing factorial operations:".
+let fact1 be safe_math.safe_factorial with 5.
+print with "5! = " concatenated with to_string with fact1.
+
+let fact2 be safe_math.safe_factorial with -3.  // This will cause an error
+if fact2 is equal to None then
+    print with "Negative factorial handled gracefully".
+end
+
+let fact3 be safe_math.safe_factorial with 25.  // This will cause an error (too large)
+if fact3 is equal to None then
+    print with "Large factorial handled gracefully".
+end
+
+print with "".
+print with "Testing array access operations:".
+let test_array be Vector.
+let len1 be push with test_array, "first".
+let len2 be push with test_array, "second".
+let len3 be push with test_array, "third".
+
+let access1 be safe_math.safe_array_access with test_array, 1.
+print with "Array[1] = " concatenated with access1.
+
+let access2 be safe_math.safe_array_access with test_array, -1.  // This will cause an error
+if access2 is equal to None then
+    print with "Negative array index handled gracefully".
+end
+
+let access3 be safe_math.safe_array_access with test_array, 10.  // This will cause an error
+if access3 is equal to None then
+    print with "Out of bounds array access handled gracefully".
+end
+
+// Show error summary
+print with "".
+let math_summary be safe_math.get_error_summary.
+print with "=== Mathematical Operations Summary ===".
+print with "Total operations: " concatenated with to_string with math_summary["total_operations"].
+print with "Successful operations: " concatenated with to_string with math_summary["successful_operations"].
+print with "Errors encountered: " concatenated with to_string with math_summary["error_count"].
+print with "Success rate: " concatenated with to_string with math_summary["success_rate"] concatenated with "%".
+
+safe_math.print_error_log.
+
+print with "".
+print with "2. Input Validation Demo".
+
+let validator be new InputValidator.
+
+// Set up validation rules
+validator.add_rule with "username", "min_length", 3.
+validator.add_rule with "username", "max_length", 20.
+validator.add_rule with "age", "min_value", 0.
+validator.add_rule with "age", "max_value", 150.
+validator.add_rule with "email", "min_length", 5.
+
+print with "Validation rules configured:".
+print with "- Username: 3-20 characters".
+print with "- Age: 0-150".
+print with "- Email: minimum 5 characters".
+
+// Test valid data
+print with "".
+print with "Testing valid user data:".
+let valid_user be Table.
+set valid_user["username"] to "alice_smith".
+set valid_user["age"] to 25.
+set valid_user["email"] to "alice@example.com".
+
+let is_valid1 be validator.validate_all with valid_user.
+if is_valid1 is equal to 1 then
+    print with "✅ Valid user data passed validation".
+otherwise
+    print with "❌ Valid user data failed validation (unexpected)".
+    validator.print_validation_errors.
+end
+
+// Test invalid data
+print with "".
+print with "Testing invalid user data:".
+let invalid_user be Table.
+set invalid_user["username"] to "ab".  // Too short
+set invalid_user["age"] to 200.       // Too high
+set invalid_user["email"] to "x".     // Too short
+
+let is_valid2 be validator.validate_all with invalid_user.
+if is_valid2 is equal to 0 then
+    print with "❌ Invalid user data correctly rejected".
+    validator.print_validation_errors.
+otherwise
+    print with "✅ Invalid user data incorrectly passed (unexpected)".
+end
+
+print with "".
+print with "3. Error Recovery Demonstration".
+
+// Demonstrate graceful error recovery in a complex operation
+to define DataProcessor:
+    property processed_items with Vector.
+    property error_count with 0.
+    property recovery_count with 0.
+    
+    to process_item with item:
+        // Simulate various processing scenarios
+        let item_type be type_of with item.
+        
+        if item_type is equal to "string" or item_type is equal to "String" then
+            let item_length be length with item.
+            if item_length is equal to 0 then
+                set self.error_count to self.error_count plus 1.
+                print with "⚠️  Empty string detected, using default value".
+                set self.recovery_count to self.recovery_count plus 1.
+                let len be push with self.processed_items, "DEFAULT".
+                return "recovered".
+            end
+            
+            let processed be to_upper with item.
+            let len be push with self.processed_items, processed.
+            return "success".
+            
+        otherwise if item_type is equal to "number" or item_type is equal to "Number" then
+            if item is less than 0 then
+                set self.error_count to self.error_count plus 1.
+                print with "⚠️  Negative number detected, using absolute value".
+                set self.recovery_count to self.recovery_count plus 1.
+                let abs_value be abs with item.
+                let len be push with self.processed_items, abs_value.
+                return "recovered".
+            end
+            
+            let len be push with self.processed_items, item.
+            return "success".
+            
+        otherwise
+            set self.error_count to self.error_count plus 1.
+            print with "❌ Unknown data type, skipping item".
+            return "error".
+        end
+    end
+    
+    to process_batch with items:
+        let item_count be length with items.
+        let success_count be 0.
+        let recovery_count be 0.
+        let error_count be 0.
+        
+        print with "Processing batch of " concatenated with to_string with item_count concatenated with " items:".
+        
+        let i be 0.
+        while i is less than item_count:
+            let item be items[i].
+            let result be self.process_item with item.
+            
+            if result is equal to "success" then
+                set success_count to success_count plus 1.
+            otherwise if result is equal to "recovered" then
+                set recovery_count to recovery_count plus 1.
+            otherwise
+                set error_count to error_count plus 1.
+            end
+            
+            set i to i plus 1.
+        end
+        
+        print with "Batch processing complete:".
+        print with "  ✅ Successful: " concatenated with to_string with success_count.
+        print with "  🔧 Recovered: " concatenated with to_string with recovery_count.
+        print with "  ❌ Errors: " concatenated with to_string with error_count.
+        
+        return success_count plus recovery_count.
+    end
+    
+    to get_processed_items:
+        return self.processed_items.
+    end
+end
+
+let processor be new DataProcessor.
+
+// Create a mixed batch with various data types and error conditions
+let mixed_batch be Vector.
+let len4 be push with mixed_batch, "hello".      // Valid string
+let len5 be push with mixed_batch, "".           // Empty string (error)
+let len6 be push with mixed_batch, "world".      // Valid string
+let len7 be push with mixed_batch, 42.           // Valid number
+let len8 be push with mixed_batch, -15.          // Negative number (error)
+let len9 be push with mixed_batch, "engage".     // Valid string
+let len10 be push with mixed_batch, 0.           // Valid number
+
+let processed_count be processor.process_batch with mixed_batch.
+print with "Successfully processed " concatenated with to_string with processed_count concatenated with " items".
+
+let processed_items be processor.get_processed_items.
+let final_count be length with processed_items.
+print with "Final processed items (" concatenated with to_string with final_count concatenated with "):".
+
+let j be 0.
+while j is less than final_count:
+    let item be processed_items[j].
+    let item_num be j plus 1.
+    print with "  " concatenated with to_string with item_num concatenated with ": " concatenated with to_string with item.
+    set j to j plus 1.
+end
+
+print with "".
+print with "4. Stack Trace Simulation".
+
+// Simulate a call stack for error tracing
+to define CallStackTracker:
+    property call_stack with Vector.
+    property max_depth with 10.
+    
+    to push_call with function_name:
+        let stack_depth be length with self.call_stack.
+        if stack_depth is greater than or equal to self.max_depth then
+            print with "❌ Stack overflow detected! Maximum call depth exceeded.".
+            return 0.
+        end
+        
+        let len be push with self.call_stack, function_name.
+        return 1.
+    end
+    
+    to pop_call:
+        let stack_depth be length with self.call_stack.
+        if stack_depth is greater than 0 then
+            let popped be pop with self.call_stack.
+            return popped.
+        end
+        return None.
+    end
+    
+    to print_stack_trace:
+        let stack_depth be length with self.call_stack.
+        
+        if stack_depth is equal to 0 then
+            print with "Call stack is empty".
+            return.
+        end
+        
+        print with "=== Stack Trace ===".
+        let i be stack_depth minus 1.
+        while i is greater than or equal to 0:
+            let function_name be self.call_stack[i].
+            let level be stack_depth minus i.
+            print with "  " concatenated with to_string with level concatenated with ". " concatenated with function_name.
+            set i to i minus 1.
+        end
+    end
+end
+
+let stack_tracker be new CallStackTracker.
+
+// Simulate a series of function calls
+print with "Simulating function call chain:".
+let call1 be stack_tracker.push_call with "main()".
+let call2 be stack_tracker.push_call with "process_data()".
+let call3 be stack_tracker.push_call with "validate_input()".
+let call4 be stack_tracker.push_call with "check_format()".
+
+print with "Error occurred in check_format()!".
+stack_tracker.print_stack_trace.
+
+print with "".
+print with "🎯 Error Handling Showcase Complete!".
+print with "Successfully demonstrated:".
+print with "  ✓ Safe mathematical operations with error handling".
+print with "  ✓ Input validation with detailed error messages".
+print with "  ✓ Graceful error recovery mechanisms".
+print with "  ✓ Comprehensive error logging and reporting".
+print with "  ✓ Stack trace simulation for debugging".
+print with "  ✓ Multiple error handling strategies working together".

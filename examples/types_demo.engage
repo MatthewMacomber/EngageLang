@@ -1,0 +1,64 @@
+// types_demo.engage
+// Demonstrates the types standard library module
+
+print with "=== Types Module Demo ===".
+print with "".
+
+// Create different types of values
+let my_number be 42.
+let my_string be "hello world".
+let my_table be Table.
+let my_vector be Vector.
+
+// Add some data to the table and vector
+set my_table["name"] to "Alice".
+set my_table["age"] to 30.
+let push_result be push with my_vector, "first item".
+let push_result2 be push with my_vector, "second item".
+
+print with "Created test values:".
+print with "- Number: " concatenated with number with my_number.
+print with "- String: " concatenated with my_string.
+let table_size be size with my_table.
+print with "- Table with " concatenated with number with table_size concatenated with " items".
+let vector_length be length with my_vector.
+print with "- Vector with " concatenated with number with vector_length concatenated with " items".
+print with "".
+
+// Test type_of function
+print with "=== Testing type_of function ===".
+print with "type_of(42): " concatenated with type_of with my_number.
+print with "type_of(hello world): " concatenated with type_of with my_string.
+print with "type_of(table): " concatenated with type_of with my_table.
+print with "type_of(vector): " concatenated with type_of with my_vector.
+print with "".
+
+// Test type checking functions
+print with "=== Testing type checking functions ===".
+
+// Check number
+let num_check be check_number with my_number.
+print with "check_number(42): " concatenated with number with num_check.
+let false_num be check_number with my_string.
+print with "check_number(hello): " concatenated with number with false_num.
+
+// Check string
+let str_check be check_string with my_string.
+print with "check_string(hello): " concatenated with number with str_check.
+let false_str be check_string with my_number.
+print with "check_string(42): " concatenated with number with false_str.
+
+// Check table
+let tbl_check be check_table with my_table.
+print with "check_table(table): " concatenated with number with tbl_check.
+let false_tbl be check_table with my_string.
+print with "check_table(hello): " concatenated with number with false_tbl.
+
+// Check vector
+let vec_check be check_vector with my_vector.
+print with "check_vector(vector): " concatenated with number with vec_check.
+let false_vec be check_vector with my_number.
+print with "check_vector(42): " concatenated with number with false_vec.
+
+print with "".
+print with "=== Types Module Demo Complete ===".
