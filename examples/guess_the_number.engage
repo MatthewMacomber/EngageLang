@@ -74,6 +74,9 @@ to get_valid_number with prompt:
     
     while valid_input is equal to 0:
         let user_input be input with prompt.
+        if user_input is None then
+            return 42.
+        end
         let trimmed_input be trim with user_input.
         
         // Check if input is empty
